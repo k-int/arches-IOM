@@ -85,6 +85,16 @@
                                     {% if user|can_edit_resource_instance %}
                                     <a data-bind="click: function () { window.open($parent.editURL + ko.unwrap(entityid)); }" href="javascript:void(0)"><i class="ion-ios-refresh-empty"></i>{% trans 'Edit' %}</a>
                                     {% endif %}
+
+                                    {% if request.user|can_edit_resource_instance %}
+                                    <!-- ko if: linkedTotalCount > 0 --> 
+                                        <a data-bind="click: function () { window.open(artefactSearchURL.replace('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', ko.unwrap(popupData().resourceinstanceid))); }" href="javascript:void(0)"><i class="ion-ios-search-strong"></i> {% trans "Linked Artefacts" %} (<span data-bind="text: linkedTotalCount"></span>)</a>
+                                    <!--/ko-->
+                                    {% endif %}
+
+                                    <a data-bind="click: zoomToPopupData" href="javascript:void(0)"><i class="fa fa-map-marker"></i> {% trans "Map" %}</a>
+
+                                    {% endif %}
                                 </div>
                             </div>
                         </div>

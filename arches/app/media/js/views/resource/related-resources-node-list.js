@@ -73,6 +73,7 @@ define([
 
             this.reportURL = arches.urls.resource_report;
             this.editURL = arches.urls.resource_editor;
+            tthis.artefactSearchURL = arches.urls.resource_artefact_search;
 
             this.selectedItems = ko.computed(function(){
                 return this.items().filter(function(item){

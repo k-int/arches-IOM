@@ -1,0 +1,60 @@
+<!--
+ARCHES - a program developed to inventory and manage immovable cultural heritage.
+Copyright (C) 2013 J. Paul Getty Trust and World Monuments Fund
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU Affero General Public License as
+published by the Free Software Foundation, either version 3 of the
+License, or (at your option) any later version.
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+GNU Affero General Public License for more details.
+You should have received a copy of the GNU Affero General Public License
+along with this program. If not, see <http://www.gnu.org/licenses/>.
+-->
+{% extends "base-manager.htm" %}
+{% load staticfiles %}
+{% load i18n %}
+
+{% block title %}
+{{ block.super }}
+{% trans "Resource Manager" %}
+{% endblock title %}
+
+
+{% block main_content %}
+<div class="scroll-y">
+
+    <!-- Default Page content-->
+    <div id="page-content" style="padding: 50px 50px 160px; margin-top: -1px;">
+
+		<div data-bind="with: artefact">
+			<h3 class="search-title" data-bind="text: _source.summary_title"></h3>
+			<div data-bind="text: _source.description[0].value"></div>
+		</div>
+
+    </div>
+</div>
+
+{% endblock main_content %}
+
+{% block pre_require_js %}
+<script>
+    {% autoescape off %}
+    define('search-data', [], function () {
+        return {
+            resourceid: "{{resourceid}}"
+        };
+    });
+
+    /* there can be only one pre_require_js block so need to include the stuff from base-manager.htm so we dont overwrite it */
+    define('view-data', [], function () {
+        return {
+            graphs: {{graphs}},
+            createableResources: {{createable_resources}},
+            help: "{{nav.help.template}}",
+        };
+    });
+    {% endautoescape %}
+</script>
+{% endblock pre_require_js %}

@@ -64,6 +64,14 @@ ELASTICSEARCH_CONNECTION_OPTIONS = {"timeout": 30}
 # a prefix to append to all elasticsearch indexes, note: must be lower case
 ELASTICSEARCH_PREFIX = "arches"
 
+#ciim es
+CIIM_ELASTICSEARCH_PUBLIC = [
+    {'url': 'imuseum.im/es'}
+]
+
+CIIM_ELASTICSEARCH_PRIVATE = [
+    {'url': 'imuseum.im/es'}
+]
 
 # a list of objects of the form below
 # {
@@ -204,6 +212,13 @@ MEDIA_URL = "/files/"
 # in apps' "static/" subdirectories and in STATICFILES_DIRS.
 # Example: "/home/media/media.lawrence.com/static/"
 STATIC_ROOT = ""
+
+STATIC_COLLECTIONS_ONLINE_URL = {   
+                                    'archive':      'https://www.imuseum.im/search/archive_record/view?id=',
+                                    'object':       'https://www.imuseum.im/search/object_record/view?id=',
+                                    'publication':  'https://www.imuseum.im/search/publication_record/view?id=',
+                                    'agent':        'https://www.imuseum.im/search/agent_record/view?id='
+                                }
 
 # URL prefix for static files.
 # Example: "http://media.lawrence.com/static/"
