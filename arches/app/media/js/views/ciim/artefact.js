@@ -38,17 +38,17 @@ require([
             
             this.getData = function()
             {
-            	var queryString = this.queryString();
+                var queryString = this.queryString();
                 queryString.uuid = data.resourceid;
                 
-          	  	$.ajax({
+                $.ajax({
                     url: arches.urls.ciim_lookup,
                     method: 'GET',
                     data: queryString
                 }).done(function(data)
                 {
-                	self.viewModel.artefact(data.hits.hits[0]);
-                	console.log(data);
+                    self.viewModel.artefact(data.hits.hits[0]);
+                    console.log(data);
                 }, this);
             }
             

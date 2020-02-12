@@ -28,11 +28,74 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
     <!-- Default Page content-->
     <div id="page-content" style="padding: 50px 50px 160px; margin-top: -1px;">
 
-		<div data-bind="with: artefact">
-			<h3 class="search-title" data-bind="text: _source.summary_title"></h3>
-			<div data-bind="text: _source.description[0].value"></div>
-		</div>
-
+        <div data-bind="with: artefact">
+            <h3 class="search-title"><span data-bind="text: _source.title[0].value"></span></h3>
+            <hr class="rp-card-section"/>
+            <!-- ko if: _source.lifecycle.creation[0].date[0].value -->
+            <div class="rp-card-section">
+                <span style="font-weight:bold">Date made:</span>
+                <span data-bind="text: _source.lifecycle.creation[0].date[0].value"></span>
+            </div>
+            <!-- /ko -->
+            <!-- ko if: _source.lifecycle.creation[0].maker[0].name[0].value -->
+            <div class="rp-card-section">
+                <span style="font-weight:bold">Maker/Artist:</span>
+                <span data-bind="text: _source.lifecycle.creation[0].maker[0].name[0].value"></span>
+            </div>
+            <!-- /ko -->
+            <!-- ko if: _source.description[0].value -->
+            <div class="rp-card-section">
+                <span style="font-weight:bold">Description:</span>
+                <span data-bind="text: _source.description[0].value"></span>
+            </div>
+            <!-- /ko -->
+            <!-- ko if: _source.measurements.catalogue_dimensions -->
+            <div class="rp-card-section">
+                <span style="font-weight:bold">Measurements:</span>
+                <span data-bind="text: _source.measurements.catalogue_dimensions"></span>
+            </div>
+            <!-- /ko -->
+            <!-- ko if: _source.materials[0] -->
+            <div class="rp-card-section">
+                <span style="font-weight:bold">Materials:</span>
+                <span data-bind="text: _source.materials[0]"></span>
+            </div>
+            <!-- /ko -->
+            <!-- ko if: _source.lifecycle.collection[0].date[0].value -->
+            <div class="rp-card-section">
+                <span style="font-weight:bold">Date Found:</span>
+                <span data-bind="text: _source.lifecycle.collection[0].date[0].value"></span>
+            </div>
+            <!-- /ko -->
+            <!-- ko if: _source.lifecycle.collection[0].collector[0].summary_title -->
+            <div class="rp-card-section">
+                <span style="font-weight:bold">Finder:</span>
+                <span data-bind="text: _source.lifecycle.collection[0].collector[0].summary_title"></span>
+            </div>
+            <!-- /ko -->
+            <!-- ko if: _source.name[0].value -->
+            <div class="rp-card-section">
+                <span style="font-weight:bold">Object name:</span>
+                <span data-bind="text: _source.name[0].value"></span>
+            </div>
+            <!-- /ko -->
+            <!-- ko if: _source.collections[0].group-->
+            <div class="rp-card-section">
+                <span style="font-weight:bold">Collection:</span>
+                <span data-bind="text: _source.collections[0].group"></span>
+            </div>
+            <!-- /ko -->
+            <!-- ko if: _source.identifier[0].value -->
+            <div class="rp-card-section">
+                <span style="font-weight:bold">ID number:</span>
+                <span data-bind="text: _source.identifier[0].value"></span>
+            </div>
+            <!-- /ko -->
+            <div class="rp-card-section">
+                <span style="font-weight:bold">Explore further:</span>
+                <a class="regular-link" data-bind="click: function () { window.open('{{collections_online_url.object}}' + _source.admin.uid); }" href="javascript:void(0)"><span data-bind="text: '{{collections_online_url.object}}' + _source.admin.uid"></span></a>
+            </div>
+        </div>
     </div>
 </div>
 

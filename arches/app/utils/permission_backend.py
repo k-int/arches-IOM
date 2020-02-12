@@ -192,3 +192,17 @@ def user_is_resource_reviewer(user):
     """
 
     return user.groups.filter(name='Resource Reviewer').exists()
+
+
+def user_can_view_ciim_private_ES(user):
+    """
+    Requires a user to be part of the PRIVATE ES groups
+    """
+    if user.is_authenticated:
+        return(
+            user.is_superuser
+            or user.groups.filter(name__in=settings.CIIM_PRIVATE_ES_GROUPS).exists()
+            )
+
+    return False
+

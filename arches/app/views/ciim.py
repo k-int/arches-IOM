@@ -25,20 +25,29 @@ from arches.app.models.system_settings import settings
 from arches.app.utils.pagination import get_paginator
 from arches.app.utils.betterJSONSerializer import JSONSerializer, JSONDeserializer
 
+
 def get_count(request):
-
-
+	user = request.user
+	# if the user is in the private es group, use the private url. Else use public 
+	if user.groups.filter(name__in=settings.CIIM_PRIVATE_ES_GROUPS).exists(): 
+		url = settings.CIIM_ELASTICSEARCH_PRIVATE['url'] + "/_search"
+	else: 
+		url = settings.CIIM_ELASTICSEARCH_PUBLIC['url'] + "/_search"
 
 	uuid = request.GET.get('uuid')
 	#"889c3f25-7f14-37dc-aab4-48a674a5920b"
 	json_q = json.dumps({"query":{"bool":{"must":[{"match":{"reference_links":uuid}}],"must_not":[],"should":[]}},"from":0,"size":10,"sort":[],"aggs":{"type":{"terms":{"field":"type.base"}}}}) 
-	url = "http://imuseum.im/es/_search"
 	headers = {'Content-Type' : 'application/json'}
 	ret=requests.get(url, headers=headers,  data = json_q)  
 
 	return JsonResponse(ret.json(), safe=False) 
 
 def search(request):
+	user = request.user
+	if user.groups.filter(name__in=settings.CIIM_PRIVATE_ES_GROUPS).exists(): 
+		url = settings.CIIM_ELASTICSEARCH_PRIVATE['url'] + "/_search"
+	else: 
+		url = settings.CIIM_ELASTICSEARCH_PUBLIC['url'] + "/_search"
 
 	#get page param from originating request
 	page = 1 if request.GET.get('page') == '' else int(request.GET.get('page', 1))
@@ -46,7 +55,6 @@ def search(request):
 	uuid = request.GET.get('uuid')
     #"889c3f25-7f14-37dc-aab4-48a674a5920b"
 	json_q = json.dumps({"query":{"bool":{"must":[{"match":{"reference_links":uuid}}],"must_not":[],"should":[]}},"from":(settings.SEARCH_ITEMS_PER_PAGE * (page - 1)),"size":settings.SEARCH_ITEMS_PER_PAGE,"sort":[],"aggs":{"type":{"terms":{"field":"type.base"}}}}) 
-	url = "http://imuseum.im/es/_search"
 	headers = {'Content-Type' : 'application/json'}
 	results=requests.get(url, headers=headers,  data = json_q).json()
 
@@ -75,10 +83,14 @@ def search(request):
 	return JsonResponse(ret, safe=False) 
 
 def lookup(request):
+	user = request.user
+	if user.groups.filter(name__in=settings.CIIM_PRIVATE_ES_GROUPS).exists(): 
+		url = settings.CIIM_ELASTICSEARCH_PRIVATE['url']+ "/_search"
+	else: 
+		url = settings.CIIM_ELASTICSEARCH_PUBLIC['url'] + "/_search"
 
 	uuid = request.GET.get('uuid')
 	json_q = json.dumps({"query":{"bool":{"must":[{"match":{"admin.uuid":uuid}}],"must_not":[],"should":[]}},"from":0,"size":1,"sort":[]}) 
-	url = "http://imuseum.im/es/_search"
 	headers = {'Content-Type' : 'application/json'}
 	ret=requests.get(url, headers=headers,  data = json_q)  
 

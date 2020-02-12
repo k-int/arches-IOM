@@ -65,7 +65,7 @@ class ResourceArtefactSearchView(BaseManagerView):
         )
 
         context['nav']['icon'] = "fa fa-sitemap"
-        context['nav']['title'] = _("Browse Linked Artefacts")
+        context['nav']['title'] = _("Browse Linked iMuseum Records")
 
         return render(request, 'views/ciim/search.htm', context)
 

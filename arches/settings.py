@@ -65,13 +65,16 @@ ELASTICSEARCH_CONNECTION_OPTIONS = {"timeout": 30}
 ELASTICSEARCH_PREFIX = "arches"
 
 #ciim es
-CIIM_ELASTICSEARCH_PUBLIC = [
-    {'url': 'imuseum.im/es'}
-]
+CIIM_ELASTICSEARCH_PUBLIC = {'url': 'http://imuseum.im/es'}
 
-CIIM_ELASTICSEARCH_PRIVATE = [
-    {'url': 'imuseum.im/es'}
-]
+
+CIIM_ELASTICSEARCH_PRIVATE = {'url': 'http://imuseum.im/es'}
+
+
+
+CIIM_PRIVATE_ES_GROUPS = ("Ciim Private ES")
+
+
 
 # a list of objects of the form below
 # {

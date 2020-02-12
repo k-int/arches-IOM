@@ -69,7 +69,7 @@ uuid_regex = settings.UUID_REGEX
 
 urlpatterns = [
     url(r"^$", main.index, name="root"),
-    url(r"^index.htm", main.index, name="home"),
+    url(r"^home/", main.index, name="home"),
     url(r"^auth/password$", ChangePasswordView.as_view(), name="change_password"),
     url(r"^auth/signup$", SignupView.as_view(), name="signup"),
     url(r"^auth/confirm_signup$", ConfirmSignupView.as_view(), name="confirm_signup"),

@@ -74,76 +74,7 @@ define([
             }
             return value.features.length;
         }, this);
-        self.linkedTotalCount = 0;//MJ ADD
-
-        this.queryString = ko.computed(function() {
-            var params = {};
-            return params;
-        }, this);
-
-        this.getLinkedRecordsCount = function(data)
-        {
-          // var request_json = {"query":{"bool":{"must":[{"match":{"reference_links":"1e9dfdd2-2042-37ed-9720-1a3a9f917018"}}],"must_not":[],"should":[]}},"from":0,"size":10,"sort":[],"aggs":{"type":{"terms":{"field":"type.base"}}}};
-        /*  var request_json = {"query":{"bool":{"must":[{"match":{"reference_links":"245cfdbd-c47a-381f-93cd-0ea58d24c3f9"}}],"must_not":[],"should":[]}},"from":0,"size":10,"sort":[],"aggs":{"type":{"terms":{"field":"type.base"}}}};
-          
-          $.ajax({
-                //url: "http://imuseum.im/es/_search",//arches.urls.feature_popup_content,
-                url: "http://localhost:9200/_search",//arches.urls.feature_popup_content,
-                data: JSON.stringify(request_json),
-                method: 'POST',
-                contentType: "application/json",
-          }).done(function(data)
-          {
-                self.linkedTotalCount = 0;
-     
-                console.log(data);
-                 
-                if(data.aggregations.type.buckets)
-                {
-                    data.aggregations.type.buckets.forEach(bucket => self.linkedTotalCount += bucket.doc_count);
-                }
-                 
-                console.log("total count :" +self.linkedTotalCount); 
-          }, 
-          this);*/
-
-
-
-         // console.log("1 "+self.popupData());
-          //console.log("2 "+ko.unwrap(self.popupData()).resourceinstanceid);
-         // console.log("3 "+self.hoverData());
-        // console.log("4 "+ self.clickData());
-
-        if(self.activeresource == data.resourceinstanceid && (self.activeresource != null && data.resourceinstanceid != null))
-        {
-              //do nothing as we have already loaded 
-        }
-        else
-        {
-              //update active resource uuid
-              self.activeresource = data.resourceinstanceid;
-              //and load linked resources
-            var queryString = this.queryString();
-            queryString.uuid = data.resourceinstanceid;
-
-            $.ajax({
-                url: arches.urls.ciim_count,
-                method: 'GET',
-                data: queryString               
-            }).done(function(data)
-            {
-                self.linkedTotalCount = 0;
-
-                //console.log(data);
-
-                if(data.aggregations.type.buckets)
-                {
-                    data.aggregations.type.buckets.forEach(bucket => self.linkedTotalCount += bucket.doc_count);
-                }
-            }, this);
-        }
-    }
-         
+      
 
         if (params.widget) params.widgets = [params.widget];
 

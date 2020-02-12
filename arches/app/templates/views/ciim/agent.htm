@@ -31,19 +31,39 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 		<div data-bind="with: artefact">
 			<h3 class="search-title">
 				<a data-bind="click: function () { window.open('{{collections_online_url.agent}}' + _source.admin.uid); }" href="javascript:void(0)">
-					<span data-bind="text: _source.summary_title"></span>
+					<span data-bind="text: _source.name[0].value"></span>
 				</a>
 				<!-- ko if: _source.gender -->
 				<span style="opacity:0.6" data-bind="text: '(' + _source.gender + ')'"></span>
 				<!-- /ko -->
 			</h3>
 			<hr class="rp-card-section"/>
-			<div style="font-weight:bold" class="rp-card-section" data-bind="text: _source.type.sub_type"></div>
-			<!-- ko if: _source.description -->
-			<div class="rp-card-section" data-bind="text: _source.description[0].value"></div>
-			<!-- /ko -->
-			<div style="font-style:italic;text-transform:capitalize" class="rp-card-section" data-bind="text: _source.sites[0]['@link'].role[0].value + ' - ' + _source.sites[0].summary_title"></div>
-
+            <!-- ko if: _source.memorials[0].name[0].value -->
+            <div class="rp-card-section">
+                <span style="font-weight:bold">Epithet:</span>
+                <span data-bind="text: _source.memorials[0].name[0].value"></span>
+            </div>
+            <!-- /ko -->
+            <!-- ko if: _source.type.sub_type[0] -->
+            <div class="rp-card-section">
+                <span style="font-weight:bold">Record type:</span>
+                <span data-bind="text: _source.type.sub_type[0]"></span>
+            </div>
+            <!-- /ko -->
+            <!-- ko if: _source.description[0].value -->
+            <div class="rp-card-section">
+                <span style="font-weight:bold">Biography:</span>
+                <span data-bind="text: _source.description[0].value"></span>
+            </div>
+            <!-- /ko -->
+            <div class="rp-card-section">
+                <span style="font-weight:bold">Explore further:</span>
+                <a class="regular-link" data-bind="click: function () { window.open('{{collections_online_url.agent}}' + _source.admin.uid); }" href="javascript:void(0)"><span data-bind="text: '{{collections_online_url.agent}}' + _source.admin.uid"></span></a>
+            </div>
+            <div>
+                <span style="font-weight:bold">Images:</span>
+                <img >
+            </div>
 		</div>
 
     </div>

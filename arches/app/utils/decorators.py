@@ -96,3 +96,11 @@ def can_read_concept():
     """
 
     return user_passes_test(user_can_read_concepts)
+
+def can_view_ciim_private_ES():
+    """
+    Requires that a user is part of the ciim private ES group
+    """
+
+    return user_passes_test(user_can_view_ciim_private_ES)
+
