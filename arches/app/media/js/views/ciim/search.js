@@ -29,6 +29,7 @@ require([
                 artefacts: ko.observableArray(),//instantiate observable array
                 total: ko.observable(),
                 searchResults: ko.observable(),
+                searchFilters: ko.observable(),
                 page: ko.observable(1),
                 paginator: koMapping.fromJS({}),
                 showPaginator: ko.observable(false),
