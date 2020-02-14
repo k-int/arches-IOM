@@ -95,6 +95,9 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
                 <img data-bind="src: '{{collections_online_url.publication}}' + _source.multimedia[0].admin.uid">
             </div>
             <!-- /ko --> 
+            <!-- ko if: _source.multimedia -->
+            <img style="margin-top:50px; width:100%;" data-bind="attr:{src: 'https://www.imuseum.im/media/' + _source.multimedia[0].processed.large.location}">
+            <!-- /ko --> 
 		</div>
     </div>
 </div>
