@@ -29,6 +29,7 @@ require([
                 artefacts: ko.observableArray(),//instantiate observable array
                 total: ko.observable(),
                 reload: function (obj, event)
+                {
                     console.log(obj + " reload");
                     self.getLinkedRecords();
                 },
