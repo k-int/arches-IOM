@@ -28,8 +28,8 @@ require([
                 arches: arches,
                 artefacts: ko.observableArray(),//instantiate observable array
                 total: ko.observable(),
-                reload: function(value){
-                    console.log(value " reload");
+                reload: function (obj, event)
+                    console.log(obj + " reload");
                     self.getLinkedRecords();
                 },
                 searchResults: ko.observable(),
