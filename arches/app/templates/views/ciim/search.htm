@@ -32,7 +32,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 	                       optionsText: 'key',
 	                       value: 'key',
 	                       optionsCaption: 'Filter Type...',
-	                       event:{ change: getLinkedRecords}"></select>
+	                       event:{ change: reload }"></select>
 	    <!-- /ko -->
 		<!-- ko if: showPaginator -->
 		<h3 class="search-title"><span data-bind="text: ('Results: '+ ((page()-1) * paginator.per_page() + 1)+' - '+((page()-1) * paginator.per_page() + artefacts().length)+' of '+total())"></span></h3>
