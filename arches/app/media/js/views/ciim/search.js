@@ -33,6 +33,7 @@ require([
                     console.log(obj + " reload");
                     self.getLinkedRecords();
                 },
+                primaryFilter: ko.observable("*"),
                 searchResults: ko.observable(),
                 searchFilters: ko.observable(),
                 page: ko.observable(1),
@@ -48,7 +49,9 @@ require([
                 }
             });
             
-            
+            this.viewModel.primaryFilter.subscribe(function(val) {
+            	self.getLinkedRecords();
+            });
 
             //maybe we can get rid of this?
             this.viewModel.graphId.subscribe(function(graphid) {
@@ -79,7 +82,8 @@ require([
                 $.ajax({
                     url: arches.urls.ciim_search,
                     method: 'GET',
-                    data: queryString
+                    data: queryString,
+                    primaryFilter: self.viewModel.primaryFilter
                 }).done(function(data){
                   
                     self.updateResults(data);
