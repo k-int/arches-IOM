@@ -30,13 +30,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
     <!-- ko if: searchFilters() && searchFilters().length > 0 -->
 		<select data-bind="options: searchFilters,
 	                       optionsText: 'key',
-	                       value: key,
-	                       optionsCaption: 'Filter Type...'"></select>
-	    <!-- /ko -->
-		<!-- ko if: searchFilters && searchFilters.length > 0 -->
-		<select data-bind="options: searchFilters,
-	                       optionsText: 'key',
-	                       value: key,
+	                       value: 'key',
 	                       optionsCaption: 'Filter Type...'"></select>
 	    <!-- /ko -->
 		<!-- ko if: showPaginator -->
