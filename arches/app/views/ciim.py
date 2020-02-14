@@ -61,7 +61,7 @@ def search(request):
 	
     #"889c3f25-7f14-37dc-aab4-48a674a5920b"
 	#json_q = json.dumps({"query":{"bool":{"must":[{"match":{"arches.sites":uuid}},{"match":{"base.type":primaryFilter}}],"must_not":[],"should":[]}},"from":(settings.SEARCH_ITEMS_PER_PAGE * (page - 1)),"size":settings.SEARCH_ITEMS_PER_PAGE,"sort":[],"aggs":{"type":{"terms":{"field":"type.base"}}}}) 
-	json_q = json.dumps({"query":{"bool":{"must":[{"match":{"reference_links":uuid},{"match":{"type.base":primaryFilter}}],"must_not":[],"should":[]}},"from":(settings.SEARCH_ITEMS_PER_PAGE * (page - 1)),"size":settings.SEARCH_ITEMS_PER_PAGE,"sort":[],"aggs":{"type":{"terms":{"field":"type.base"}}}}) 
+	json_q = json.dumps({"query":{"bool":{"must":[{"match":{"reference_links":uuid}},{"match":{"type.base":primaryFilter}}],"must_not":[],"should":[]}},"from":(settings.SEARCH_ITEMS_PER_PAGE * (page - 1)),"size":settings.SEARCH_ITEMS_PER_PAGE,"sort":[],"aggs":{"type":{"terms":{"field":"type.base"}}}}) 
 	headers = {'Content-Type' : 'application/json'}
 	results=requests.get(url, headers=headers,  data = json_q).json()
 
