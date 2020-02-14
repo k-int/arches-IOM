@@ -36,7 +36,7 @@ def get_count(request):
 
 	uuid = request.GET.get('uuid')
 	#"889c3f25-7f14-37dc-aab4-48a674a5920b"
-	json_q = json.dumps({"query":{"bool":{"must":[{"match":{"reference_links":uuid}}],"must_not":[],"should":[]}},"from":0,"size":10,"sort":[],"aggs":{"type":{"terms":{"field":"type.base"}}}}) 
+	json_q = json.dumps({"query":{"bool":{"must":[{"match":{"arches.sites":uuid}}],"must_not":[],"should":[]}},"from":0,"size":10,"sort":[],"aggs":{"type":{"terms":{"field":"type.base"}}}}) 
 	headers = {'Content-Type' : 'application/json'}
 	ret=requests.get(url, headers=headers,  data = json_q)  
 
@@ -53,8 +53,14 @@ def search(request):
 	page = 1 if request.GET.get('page') == '' else int(request.GET.get('page', 1))
 
 	uuid = request.GET.get('uuid')
+	primaryFilter = request.GET.get('primaryFilter')
+	secondaryFilter = request.GET.get('secondaryFilter')
+	
+	if primaryFilter is None:
+		primaryFilter = '*'
+	
     #"889c3f25-7f14-37dc-aab4-48a674a5920b"
-	json_q = json.dumps({"query":{"bool":{"must":[{"match":{"reference_links":uuid}}],"must_not":[],"should":[]}},"from":(settings.SEARCH_ITEMS_PER_PAGE * (page - 1)),"size":settings.SEARCH_ITEMS_PER_PAGE,"sort":[],"aggs":{"type":{"terms":{"field":"type.base"}}}}) 
+	json_q = json.dumps({"query":{"bool":{"must":[{"match":{"arches.sites":uuid}},{"match":{"base.type":primaryFilter}}],"must_not":[],"should":[]}},"from":(settings.SEARCH_ITEMS_PER_PAGE * (page - 1)),"size":settings.SEARCH_ITEMS_PER_PAGE,"sort":[],"aggs":{"type":{"terms":{"field":"type.base"}}}}) 
 	headers = {'Content-Type' : 'application/json'}
 	results=requests.get(url, headers=headers,  data = json_q).json()
 
@@ -64,6 +70,11 @@ def search(request):
 
 		ret = {}
 		ret['results'] = results
+		
+		if primaryFilter is not None:
+			ret['primaryFilter'] = primaryFilter
+		if secondaryFilter is not None:
+			ret['secondaryFilter'] = secondaryFilter
 
 		paginator, pages = get_paginator(request, results, total, page, settings.SEARCH_ITEMS_PER_PAGE)
 		page = paginator.page(page)

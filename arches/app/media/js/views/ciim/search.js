@@ -78,6 +78,7 @@ require([
                     self.updateResults(data);
                     self.viewModel.total(data.results.hits.total);
                     self.viewModel.searchResults = data;
+                    self.viewModel.searchFilters = data.aggregations.type.buckets;
                     console.log(data);
                     //add results to my observable array
                     data.results.hits.hits.forEach(hit => self.viewModel.artefacts.push(hit));
