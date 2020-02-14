@@ -66,6 +66,7 @@ require([
             
             this.getLinkedRecords = function()
             {
+            	console.log("get linked records called");
                 var queryString = this.queryString();
                 queryString.page = this.viewModel.page();
                 queryString.uuid = data.resourceid;
