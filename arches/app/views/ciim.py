@@ -38,6 +38,7 @@ def get_count(request):
 	#"889c3f25-7f14-37dc-aab4-48a674a5920b"
 	json_q = json.dumps({"query":{"bool":{"must":[{"match":{"arches.sites":uuid}}],"must_not":[],"should":[]}},"from":0,"size":10,"sort":[],"aggs":{"type":{"terms":{"field":"type.base"}}}}) 
 	headers = {'Content-Type' : 'application/json'}
+	print("!!!!!!!!!!!!!!!!!!!!!", headers)
 	ret=requests.get(url, headers=headers,  data = json_q)  
 
 	return JsonResponse(ret.json(), safe=False) 
@@ -63,6 +64,7 @@ def search(request):
 	#json_q = json.dumps({"query":{"bool":{"must":[{"match":{"arches.sites":uuid}},{"match":{"base.type":primaryFilter}}],"must_not":[],"should":[]}},"from":(settings.SEARCH_ITEMS_PER_PAGE * (page - 1)),"size":settings.SEARCH_ITEMS_PER_PAGE,"sort":[],"aggs":{"type":{"terms":{"field":"type.base"}}}}) 
 	json_q = json.dumps({"query":{"bool":{"must":[{"match":{"reference_links":uuid}}],"must_not":[],"should":[]}},"from":(settings.SEARCH_ITEMS_PER_PAGE * (page - 1)),"size":settings.SEARCH_ITEMS_PER_PAGE,"sort":[],"aggs":{"type":{"terms":{"field":"type.base"}}}}) 
 	headers = {'Content-Type' : 'application/json'}
+	print("!!!!!!!!!!!!!!!!!!!!!", headers)
 	results=requests.get(url, headers=headers,  data = json_q).json()
 
 	if results is not None:
@@ -104,6 +106,7 @@ def lookup(request):
 	uuid = request.GET.get('uuid')
 	json_q = json.dumps({"query":{"bool":{"must":[{"match":{"admin.uuid":uuid}}],"must_not":[],"should":[]}},"from":0,"size":1,"sort":[]}) 
 	headers = {'Content-Type' : 'application/json'}
+	print("!!!!!!!!!!!!!!!!!!!!!", headers)
 	ret=requests.get(url, headers=headers,  data = json_q)  
 
 	#logger.warning('response is ' %)

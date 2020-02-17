@@ -65,7 +65,7 @@ class ResourceArtefactSearchView(BaseManagerView):
         )
 
         context['nav']['icon'] = "fa fa-sitemap"
-        context['nav']['title'] = _("Browse Linked iMuseum Records")
+        context['nav']['title'] = _("Browse Linked Resources")
 
         return render(request, 'views/ciim/search.htm', context)
 
@@ -92,6 +92,7 @@ class ResourceArtefactView(BaseManagerView):
             view = 'views/ciim/object.htm'
         elif basetype == 'agent':
             context['nav']['icon'] = "fa fa-user"
+            context['nav']['title'] = _("Related " + "people & organisations")
             view = 'views/ciim/agent.htm'
         elif basetype == 'publication':
             context['nav']['icon'] = "fa fa-book"

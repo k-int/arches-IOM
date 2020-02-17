@@ -31,61 +31,55 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
         <div data-bind="with: artefact">
             <h3 class="search-title"><span data-bind="text: _source.title[0].value"></span></h3>
             <hr class="rp-card-section"/>
-            <!-- ko if: _source.lifecycle.creation[0].date[0].value -->
+            <!-- ko if: _source.lifecycle && _source.lifecycle.creation && _source.lifecycle.creation[0].date && _source.lifecycle.creation[0].date[0].value -->
             <div class="rp-card-section">
                 <span style="font-weight:bold">Date made:</span>
                 <span data-bind="text: _source.lifecycle.creation[0].date[0].value"></span>
             </div>
             <!-- /ko -->
-            <!-- ko if: _source.lifecycle.creation[0].maker[0].name[0].value -->
+            <!-- ko if: _source.lifecycle && _source.lifecycle.creation && _source.lifecycle.creation[0].maker && _source.lifecycle.creation[0].maker[0].name && _source.lifecycle.creation[0].maker[0].name[0].value -->
             <div class="rp-card-section">
                 <span style="font-weight:bold">Maker/Artist:</span>
                 <span data-bind="text: _source.lifecycle.creation[0].maker[0].name[0].value"></span>
             </div>
             <!-- /ko -->
-            <!-- ko if: _source.description[0].value -->
+            <!-- ko if: _source.description && _source.description[0].value -->
             <div class="rp-card-section">
                 <span style="font-weight:bold">Description:</span>
                 <span data-bind="text: _source.description[0].value"></span>
             </div>
             <!-- /ko -->
-            <!-- ko if: _source.measurements.catalogue_dimensions -->
+            <!-- ko if: _source.measurements && _source.measurements.catalogue_dimensions -->
             <div class="rp-card-section">
                 <span style="font-weight:bold">Measurements:</span>
                 <span data-bind="text: _source.measurements.catalogue_dimensions"></span>
             </div>
             <!-- /ko -->
-            <!-- ko if: _source.materials[0] -->
+            <!-- ko if: _source.materials && _source.materials[0] -->
             <div class="rp-card-section">
                 <span style="font-weight:bold">Materials:</span>
                 <span data-bind="text: _source.materials[0]"></span>
             </div>
             <!-- /ko -->
-            <!-- ko if: _source.lifecycle.collection[0].date[0].value -->
-            <div class="rp-card-section">
-                <span style="font-weight:bold">Date Found:</span>
-                <span data-bind="text: _source.lifecycle.collection[0].date[0].value"></span>
-            </div>
-            <!-- /ko -->
-            <!-- ko if: _source.lifecycle.collection[0].collector[0].summary_title -->
+            <!-- ko if: _source.lifecycle && _source.lifecycle.collection && _source.lifecycle.collection[0].collector && _source.lifecycle.collection[0].collector[0].summary_title -->
             <div class="rp-card-section">
                 <span style="font-weight:bold">Finder:</span>
                 <span data-bind="text: _source.lifecycle.collection[0].collector[0].summary_title"></span>
             </div>
             <!-- /ko -->
-            <!-- ko if: _source.name[0].value -->
+            <!-- ko if: _source.name && _source.name[0].value -->
             <div class="rp-card-section">
                 <span style="font-weight:bold">Object name:</span>
                 <span data-bind="text: _source.name[0].value"></span>
             </div>
             <!-- /ko -->
-            <!-- ko if: _source.collections[0].group-->
+            <!-- ko if: _source.collections && _source.collections[0].group-->
             <div class="rp-card-section">
                 <span style="font-weight:bold">Collection:</span>
                 <span data-bind="text: _source.collections[0].group"></span>
             </div>
             <!-- /ko -->
-            <!-- ko if: _source.identifier[0].value -->
+            <!-- ko if: _source.identifier && _source.identifier[0].value -->
             <div class="rp-card-section">
                 <span style="font-weight:bold">ID number:</span>
                 <span data-bind="text: _source.identifier[0].value"></span>

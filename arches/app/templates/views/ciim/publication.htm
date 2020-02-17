@@ -31,13 +31,13 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 		<div data-bind="with: artefact">
 			<h3 class="search-title"><span data-bind="text: _source.summary_title"></span></h3>
 			<hr class="rp-card-section"/>
-			<!-- ko if: _source.lifecycle.publication[0].date[0].value -->
+			<!-- ko if: _source.lifecycle && _source.lifecycle.publication && _source.lifecycle.publication[0].date && _source.lifecycle.publication[0].date[0].value -->
 			<div class="rp-card-section">
 				<span style="font-weight:bold">Publication date:</span>
 				<span data-bind="text: _source.lifecycle.publication[0].date[0].value"></span>
 			</div>
 			<!-- /ko -->
-			<!-- ko if: _source.lifecycle.publication[0].maker[0].summary_title -->
+			<!-- ko if: _source.lifecycle && _source.lifecycle.publication && _source.lifecycle.publication[0].maker &&_source.lifecycle.publication[0].maker[0].summary_title -->
 			<div class="rp-card-section">
 				<span style="font-weight:bold">Author or editor:</span>
 				<span data-bind="text: _source.lifecycle.publication[0].maker[0].summary_title"></span>
@@ -49,37 +49,37 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 				<span data-bind="text: _source.description[0].value"> </span>
 			</div>
 			<!-- /ko -->
-			<!-- ko if: _source.lifecycle.publication[0].places[0].name[0].value -->
+			<!-- ko if: _source.lifecycle && _source.lifecycle.publication && _source.lifecycle.publication[0].places && _source.lifecycle.publication[0].places[0].name && _source.lifecycle.publication[0].places[0].name[0].value -->
 			<div class="rp-card-section">
 				<span style="font-weight:bold">Publication Details:</span>
 				<span data-bind="text: _source.lifecycle.publication[0].places[0].name[0].value"></span>
 			</div>
 			<!-- /ko -->
-			<!-- ko if: _source.measurements.display -->
+			<!-- ko if: _source.measurements && _source.measurements.display -->
 			<div class="rp-card-section">
 				<span style="font-weight:bold">Physical description:</span>
 				<span data-bind="text: _source.measurements.display"></span>
 			</div>
 			<!-- /ko -->
-			<!-- ko if: _source.name[0].value -->
+			<!-- ko if: _source.name && _source.name[0].value -->
 			<div class="rp-card-section">
 				<span style="font-weight:bold">Item name:</span>
 				<span data-bind="text: _source.name[0].value"></span>
 			</div>
 			<!-- /ko -->
-			<!-- ko if: _source.collections[0].group -->
+			<!-- ko if: _source.collections && _source.collections[0].summary_title -->
 			<div class="rp-card-section">
 				<span style="font-weight:bold">Collection:</span>
-				<span data-bind="text: _source.collections[0].group"></span>
+				<span data-bind="text: _source.collections[0].summary_title"></span>
 			</div>
 			<!-- /ko -->
-			<!-- ko if: _source.identifier[0].value -->
+			<!-- ko if:  _source.identifier && _source.identifier[0].value -->
 			<div class="rp-card-section">
 				<span style="font-weight:bold">ID number:</span>
 				<span data-bind="text: _source.identifier[0].value"></span>
 			</div>
 			<!-- /ko -->
-			<!-- ko if: _source.classifications[0].summary_title -->
+			<!-- ko if: _source.classifications && _source.classifications[0].summary_title -->
 			<div class="rp-card-section">
 				<span style="font-weight:bold">Classification:</span>
 				<span data-bind="text: _source.classifications[0].summary_title"></span>

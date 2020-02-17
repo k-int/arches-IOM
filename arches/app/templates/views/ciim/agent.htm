@@ -31,26 +31,36 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 		<div data-bind="with: artefact">
 			<h3 class="search-title">
 				<a data-bind="click: function () { window.open('{{collections_online_url.agent}}' + _source.admin.uid); }" href="javascript:void(0)">
-					<span data-bind="text: _source.name[0].value"></span>
+                    <!-- ko if: _source.name -->
+                    <!-- ko if: _source.name[0].first_name && _source.name[0].last_name -->
+					<span data-bind="text: _source.name[0].first_name + ' ' + _source.name[0].last_name"></span>
+                    <!-- /ko --> 
+
+                    <!-- ko ifnot: _source.name[0].first_name && _source.name[0].last_name -->
+                    <!-- ko if: _source.name[0].value -->
+                    <span data-bind="text: _source.name[0].value"></span>
+                    <!-- /ko --> 
+                    <!-- /ko -->
+                    <!-- /ko --> 
 				</a>
 				<!-- ko if: _source.gender -->
 				<span style="opacity:0.6" data-bind="text: '(' + _source.gender + ')'"></span>
 				<!-- /ko -->
 			</h3>
 			<hr class="rp-card-section"/>
-            <!-- ko if: _source.memorials -->
+            <!-- ko if: _source.memorials && _source.memorials[0].name && _source.memorials[0].name[0].summary_title  -->
             <div class="rp-card-section">
                 <span style="font-weight:bold">Epithet:</span>
-                <span data-bind="text: _source.memorials[0].name[0].value"></span>
+                <span data-bind="text: _source.memorials[0].name[0].summary_title"></span>
             </div>
             <!-- /ko -->
-            <!-- ko if: _source.type.sub_type[0] -->
+            <!-- ko if: _source.type && _source.type.sub_type[0] -->
             <div class="rp-card-section">
                 <span style="font-weight:bold">Record type:</span>
                 <span data-bind="text: _source.type.sub_type[0]"></span>
             </div>
             <!-- /ko -->
-            <!-- ko if: _source.description[0].value -->
+            <!-- ko if: _source.description && _source.description[0].value -->
             <div class="rp-card-section">
                 <span style="font-weight:bold">Biography:</span>
                 <span data-bind="text: _source.description[0].value"></span>
