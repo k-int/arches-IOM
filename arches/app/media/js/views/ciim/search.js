@@ -19,6 +19,17 @@ require([
         initialize: function(options){
 
             var self = this;
+            
+            ko.subscribable.fn.subscribeChanged = function (callback) {
+                var oldValue;
+                this.subscribe(function (_oldValue) {
+                    oldValue = _oldValue;
+                }, this, 'beforeChange');
+
+                this.subscribe(function (newValue) {
+                    callback(newValue, oldValue);
+                });
+            };
 
             console.log("resource id is" + data.resourceid);
             
@@ -53,8 +64,11 @@ require([
                 }
             });
             
-            this.viewModel.primaryFilter.subscribe(function(val) {
-            	self.getLinkedRecords();
+            this.viewModel.primaryFilter.subscribeChangedfunction (newValue, oldValue) {
+            	if(newValue != oldValue)
+            	{
+            		this.getLinkedRecords();
+            	}
             });
 
             //maybe we can get rid of this?
