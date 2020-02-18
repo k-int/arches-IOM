@@ -55,10 +55,10 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
   		<!-- ko foreach: artefacts -->
         <!-- ko ifnot: _source.type.base === "agent" -->
 		<div class="search-listing" style="width:100%">
-			<h3 class="search-listing-title" data-bind="text: _source.summary_title"></h3>
+			<h3 class="search-listing-title" data-bind="text: _source.arches.primarySort[0]"></h3>
 			<div class="search-listing-body">
             <p data-bind="text: _source.lifecycle.creation[0].date[0].value"></p>
-            <p data-bind="text: _source.collections[0].group"></p>
+            <p data-bind="text: _source.arches.primaryFilter[0]"></p>
             </div>
 			<div class="search-listing-footer">
 				<a data-bind="click: function () { window.open($parent.viewURL().replace('basetype', ko.unwrap(_source.type.base)).replace('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', ko.unwrap(_source.admin.uuid))); }" href="javascript:void(0)"><i class="fa fa-code-fork"></i> View</a>  
@@ -67,10 +67,10 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
         <!-- /ko -->
         <!-- ko if: _source.type.base === "agent" -->
         <div class="search-listing" style="width:100%">
-            <h3 class="search-listing-title" data-bind="text: _source.name[0].value"></h3>
+            <h3 class="search-listing-title" data-bind="text: _source.arches.primarySort[0]"></h3>
             <div class="search-listing-body">
             <p data-bind="text: _source.memorials[0].name[0].value"></p>
-            <p data-bind="text: _source.type.sub_type[0]"></p>   
+            <p data-bind="text: _source.arches.primaryFilter[0]"></p>   
             </div>
 
             <div class="search-listing-footer">

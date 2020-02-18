@@ -62,9 +62,9 @@ def search(request):
     #"889c3f25-7f14-37dc-aab4-48a674a5920b"
 	#json_q = json.dumps({"query":{"bool":{"must":[{"match":{"arches.sites":uuid}},{"match":{"base.type":primaryFilter}}],"must_not":[],"should":[]}},"from":(settings.SEARCH_ITEMS_PER_PAGE * (page - 1)),"size":settings.SEARCH_ITEMS_PER_PAGE,"sort":[],"aggs":{"type":{"terms":{"field":"type.base"}}}}) 
 	if primaryFilter is '*':
-		json_q = json.dumps({"query":{"bool":{"must":[{"match":{"reference_links":uuid}}],"must_not":[],"should":[]}},"from":(settings.SEARCH_ITEMS_PER_PAGE * (page - 1)),"size":settings.SEARCH_ITEMS_PER_PAGE,"sort":[],"aggs":{"type":{"terms":{"field":"type.base"}},"primaryFilter":{"terms":{"field":"collections.group"}}}}) 
+		json_q = json.dumps({"query":{"bool":{"must":[{"match":{"arches.sites":uuid}}],"must_not":[],"should":[]}},"from":(settings.SEARCH_ITEMS_PER_PAGE * (page - 1)),"size":settings.SEARCH_ITEMS_PER_PAGE,"sort":[],"aggs":{"type":{"terms":{"field":"type.base"}},"primaryFilter":{"terms":{"field":"arches.primaryFilter"}}}}) 
 	else:
-		json_q = json.dumps({"query":{"bool":{"must":[{"match":{"reference_links":uuid}},{"match":{"collections.group":primaryFilter}}],"must_not":[],"should":[]}},"from":(settings.SEARCH_ITEMS_PER_PAGE * (page - 1)),"size":settings.SEARCH_ITEMS_PER_PAGE,"sort":[],"aggs":{"type":{"terms":{"field":"type.base"}},"primaryFilter":{"terms":{"field":"collections.group"}}}}) 
+		json_q = json.dumps({"query":{"bool":{"must":[{"match":{"arches.sites":uuid}},{"match":{"primaryFilter":primaryFilter}}],"must_not":[],"should":[]}},"from":(settings.SEARCH_ITEMS_PER_PAGE * (page - 1)),"size":settings.SEARCH_ITEMS_PER_PAGE,"sort":[],"aggs":{"type":{"terms":{"field":"type.base"}},"primaryFilter":{"terms":{"field":"arches.primaryFilter"}}}}) 
 	
 	headers = {'Content-Type' : 'application/json'}
 	results=requests.get(url, headers=headers,  data = json_q).json()
