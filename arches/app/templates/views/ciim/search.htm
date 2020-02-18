@@ -38,7 +38,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
      	<hr></hr>
      	<div>Filters</div>
     	<!-- ko if: searchFilters()  -->
-   			<div class="btn-group btn-group-xs">
+   			<div class="btn-group btn-group-xs" style="margin-bottom:20px">
    			<!-- ko if: searchFilters().primaryFilter  -->
    				<!-- ko foreach: searchFilters().primaryFilter -->
    					<button data-bind="click: $parent.filter.bind('filter_val',key), css:{'btn btn-primary': key == $parent.primaryFilter()}">
@@ -52,10 +52,6 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
    			</div>
 	    <!-- /ko -->
 	    
-	    <hr></hr>
-	    
-     	
-
   		<!-- ko foreach: artefacts -->
         <!-- ko ifnot: _source.type.base === "agent" -->
 		<div class="search-listing" style="width:100%">
