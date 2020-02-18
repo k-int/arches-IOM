@@ -42,7 +42,7 @@ require([
                 filter: function (filter_val)
                 {
                 	console.log("filter called : " + filter_val);
-                	//self.viewModel.primaryFilter(key);
+                	self.viewModel.primaryFilter(filter_val);
                 },
                 reload: function (obj, event)
                 {
