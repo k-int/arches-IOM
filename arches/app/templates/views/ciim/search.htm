@@ -30,12 +30,12 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
     	<!-- ko if: searchFilters()  -->
    			<!-- ko if: searchFilters().type  -->
    				<!-- ko foreach: searchFilters().type -->
-   					<button data-bind="text: doc_count + ' ' + key, click: $parent.filter.bind(key)"></button>
+   					<button data-bind="text: doc_count + ' ' + key, click: $parent.filter(key)"></button>
    				<!-- /ko -->
    			<!-- /ko -->
    			<!-- ko if: searchFilters().primaryFilter  -->
    				<!-- ko foreach: searchFilters().primaryFilter -->
-   					<button data-bind="text: doc_count + ' ' + key, click: $parent.filter.bind(key)"></button>
+   					<button data-bind="text: doc_count + ' ' + key, click: $parent.filter(key)"></button>
    				<!-- /ko -->
    			<!-- /ko -->
 		<!--  <select style="margin-bottom: 20px" data-bind="options: searchFilters,
