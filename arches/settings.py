@@ -56,7 +56,7 @@ COUCHDB_URL = "http://admin:admin@localhost:5984"  # defaults to localhost:5984
 ANONYMOUS_USER_NAME = None
 
 ELASTICSEARCH_HTTP_PORT = 9500  # this should be in increments of 200, eg: 9400, 9600, 9800
-ELASTICSEARCH_TEMP_HTTP_ENDPOINT = "http://localhost:9800"
+ELASTICSEARCH_TEMP_HTTP_ENDPOINT = "http://localhost:9200"
 SEARCH_BACKEND = "arches.app.search.search.SearchEngine"
 # see http://elasticsearch-py.readthedocs.org/en/master/api.html#elasticsearch.Elasticsearch
 ELASTICSEARCH_HOSTS = [{"host": "localhost", "port": ELASTICSEARCH_HTTP_PORT}]
@@ -65,10 +65,10 @@ ELASTICSEARCH_CONNECTION_OPTIONS = {"timeout": 30}
 ELASTICSEARCH_PREFIX = "arches"
 
 #ciim es
-CIIM_ELASTICSEARCH_PUBLIC = {'url': 'http://imuseum.im/es'}
+CIIM_ELASTICSEARCH_PUBLIC = {'url': 'http://localhost:9200/public'}
 
 
-CIIM_ELASTICSEARCH_PRIVATE = {'url': 'http://imuseum.im/es'}
+CIIM_ELASTICSEARCH_PRIVATE = {'url': 'http://localhost:9200/private'}
 
 
 
