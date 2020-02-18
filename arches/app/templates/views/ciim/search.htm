@@ -31,9 +31,8 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
    			<div class="btn-group btn-group-xs">
    			<!-- ko if: searchFilters().primaryFilter  -->
    				<!-- ko foreach: searchFilters().primaryFilter -->
-   					<button data-bind="click: $parent.filter.bind('filter_val',key), css:{'btn btn-success': key == $parent.primaryFilter()}">
-   						<span class="badge" data-bind="text: doc_count"></span>
-   						<span data-bind="text: key"></span>
+   					<button data-bind="click: $parent.filter.bind('filter_val',key), css:{'btn btn-primary': key == $parent.primaryFilter()}">
+   						<span data-bind="text:  doc_count + ' ' + key"></span>
    						<!-- ko if: key == $parent.primaryFilter() -->
    						<span class="glyphicon glyphicon-remove"></span>
    						<!-- /ko -->
