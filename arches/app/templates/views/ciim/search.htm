@@ -29,8 +29,9 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
     <div id="page-content" style="padding: 50px 50px 160px; margin-top: -1px;">
     
     	<!-- ko if: searchFilters()  -->
-   			<div class="btn-group btn-group-xs" style="margin-top:5px; margin-bottom:20px;">
+   			<div class="btn-group btn-group-xs">
    			<!-- ko if: searchFilters().primaryFilter  -->
+   			<span>FILTERS</span>
    				<!-- ko foreach: searchFilters().primaryFilter -->
    					<button data-bind="click: $parent.filter.bind('filter_val',key), css:{'btn btn-primary': key == $parent.primaryFilter()}">
    						<span data-bind="text: key + ' (' + doc_count +')'"></span>
