@@ -92,7 +92,7 @@ require([
                     
                     data.results.aggregations.type.buckets.push({ doc_count: 0, key: "object"});
                     
-                    self.viewModel.searchFilters(data.results.aggregations.type.buckets);
+                    self.viewModel.searchFilters({"type":data.results.aggregations.type.buckets,"primaryFilter":data.results.aggregations.primaryFilter.buckets});
      
                     console.log(data);
                     //add results to my observable array
