@@ -28,16 +28,18 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
     <!-- Default Page content-->
     <div id="page-content" style="padding: 50px 50px 160px; margin-top: -1px;">
     	<!-- ko if: searchFilters()  -->
-   			<!-- ko if: searchFilters().type  -->
-   				<!-- ko foreach: searchFilters().type -->
-   					<button data-bind="text: doc_count + ' ' + key, click: $parent.filter.bind('filter_val',key)"></button>
-   				<!-- /ko -->
-   			<!-- /ko -->
+   			<div class="btn-group btn-group-xs">
    			<!-- ko if: searchFilters().primaryFilter  -->
    				<!-- ko foreach: searchFilters().primaryFilter -->
-   					<button data-bind="text: doc_count + ' ' + key, click: $parent.filter.bind('filter_val',key), css:{'btn btn-success': key == $parent.primaryFilter()}"></button>
+   					<button data-bind="click: $parent.filter.bind('filter_val',key), css:{'btn btn-success': key == $parent.primaryFilter()}">
+   						<span data-bind="text: doc_count + ' ' + key"></span>
+   						<!-- ko if: key == $parent.primaryFilter() -->
+   						<span>X</span>
+   						<!-- /ko -->
+   					</button>
    				<!-- /ko -->
    			<!-- /ko -->
+   			</div>
 		<!--  <select style="margin-bottom: 20px" data-bind="options: searchFilters,
 	                       optionsText: 'key',
 	                       value: primaryFilter,
