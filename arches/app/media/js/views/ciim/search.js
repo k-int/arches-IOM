@@ -64,7 +64,7 @@ require([
                 }
             });
             
-            this.viewModel.primaryFilter.subscribeChangedfunction (newValue, oldValue) {
+            this.viewModel.primaryFilter.subscribeChanged(function (newValue, oldValue) {
             	if(newValue != oldValue)
             	{
             		this.getLinkedRecords();
