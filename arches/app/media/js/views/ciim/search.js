@@ -49,9 +49,7 @@ require([
                 	else
                 	{
                 		self.viewModel.primaryFilter("*");
-                	}
-                	
-       
+                	}      
                 },
                 reload: function (obj, event)
                 {
