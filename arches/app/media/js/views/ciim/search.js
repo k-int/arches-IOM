@@ -107,6 +107,7 @@ require([
                     data: queryString
                 }).done(function(data){
                   
+                    console.log(data);
                     self.updateResults(data);
                     self.viewModel.total(data.results.hits.total);
                     self.viewModel.searchResults = data;
@@ -115,7 +116,7 @@ require([
                     
                     self.viewModel.searchFilters({"type":data.results.aggregations.type.buckets,"primaryFilter":data.results.aggregations.primaryFilter.buckets});
      
-                    console.log(data);
+         
                     //add results to my observable array
                     data.results.hits.hits.forEach(hit => self.viewModel.artefacts.push(hit));
                     
@@ -134,7 +135,6 @@ require([
         updateResults: function(response){
             var self = this;
             
-            console.log(response);
             koMapping.fromJS(response.paginator, self.viewModel.paginator);
             
             if(response.results.hits.total <= self.viewModel.paginator.per_page())
