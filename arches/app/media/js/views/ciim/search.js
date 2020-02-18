@@ -67,6 +67,8 @@ require([
             this.viewModel.primaryFilter.subscribeChanged(function (newValue, oldValue) {
             	if(newValue != oldValue)
             	{
+            		
+            		console.log(newValue + " " + oldValue);
             		self.getLinkedRecords();
             	}
             });
