@@ -41,8 +41,17 @@ require([
                 total: ko.observable(),
                 filter: function (filter_val)
                 {
-                	console.log("filter called : " + filter_val);
-                	self.viewModel.primaryFilter(filter_val);
+                	if(filter_val != self.viewModel.primaryFilter())
+                	{
+                		console.log("filter called : " + filter_val);
+                		self.viewModel.primaryFilter(filter_val);
+                	}
+                	else
+                	{
+                		self.viewModel.primaryFilter("*");
+                	}
+                	
+       
                 },
                 reload: function (obj, event)
                 {
@@ -68,7 +77,6 @@ require([
             this.viewModel.primaryFilter.subscribeChanged(function (newValue, oldValue) {
             	if(newValue != oldValue)
             	{
-            		
             		console.log(newValue + " " + oldValue);
             		self.getLinkedRecords();
             	}
