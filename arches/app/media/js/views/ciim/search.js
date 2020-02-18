@@ -41,7 +41,7 @@ require([
                 total: ko.observable(),
                 filter: function (key)
                 {
-                	self.viewModel.primaryFilter(key);
+                	//self.viewModel.primaryFilter(key);
                 },
                 reload: function (obj, event)
                 {
