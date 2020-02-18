@@ -28,6 +28,10 @@ require([
                 arches: arches,
                 artefacts: ko.observableArray(),//instantiate observable array
                 total: ko.observable(),
+                filter: function (key)
+                {
+                	self.viewModel.primaryFilter(key);
+                },
                 reload: function (obj, event)
                 {
                     console.log(obj + " reload");

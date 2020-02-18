@@ -30,7 +30,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
     	<!-- ko if: searchFilters()  -->
    			<!-- ko if: searchFilters().type  -->
    				<!-- ko foreach: searchFilters().type -->
-   					<button data-bind="text: doc_count + ' ' + key, click: primaryFilter(key)"></button>
+   					<button data-bind="text: doc_count + ' ' + key, click: filter(key)"></button>
    				<!-- /ko -->
    			<!-- /ko -->
    			<!-- ko if: searchFilters().primaryFilter  -->
