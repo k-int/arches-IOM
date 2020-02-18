@@ -39,8 +39,9 @@ require([
                 arches: arches,
                 artefacts: ko.observableArray(),//instantiate observable array
                 total: ko.observable(),
-                filter: function (key)
+                filter: function (filter_val)
                 {
+                	console.log("filter called : " + filter_val);
                 	//self.viewModel.primaryFilter(key);
                 },
                 reload: function (obj, event)
