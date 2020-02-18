@@ -55,7 +55,7 @@ COUCHDB_URL = "http://admin:admin@localhost:5984"  # defaults to localhost:5984
 # from http://django-guardian.readthedocs.io/en/stable/configuration.html#anonymous-user-name
 ANONYMOUS_USER_NAME = None
 
-ELASTICSEARCH_HTTP_PORT = 9200  # this should be in increments of 200, eg: 9400, 9600, 9800
+ELASTICSEARCH_HTTP_PORT = 9500  # this should be in increments of 200, eg: 9400, 9600, 9800
 ELASTICSEARCH_TEMP_HTTP_ENDPOINT = "http://localhost:9800"
 SEARCH_BACKEND = "arches.app.search.search.SearchEngine"
 # see http://elasticsearch-py.readthedocs.org/en/master/api.html#elasticsearch.Elasticsearch
