@@ -35,7 +35,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
    			<!-- /ko -->
    			<!-- ko if: searchFilters().primaryFilter  -->
    				<!-- ko foreach: searchFilters().primaryFilter -->
-   					<button data-bind="text: doc_count + ' ' + key, click: $parent.filter.bind('filter_val',key)"></button>
+   					<button data-bind="text: doc_count + ' ' + key, click: $parent.filter.bind('filter_val',key), css:{active-filter: key == primaryFilter()"></button>
    				<!-- /ko -->
    			<!-- /ko -->
 		<!--  <select style="margin-bottom: 20px" data-bind="options: searchFilters,
