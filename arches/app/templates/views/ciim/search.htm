@@ -36,7 +36,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 		<!-- /ko -->
 		
     	<!-- ko if: searchFilters()  -->
-   			<div class="btn-group btn-group-xs" style="margin-bottom:20px;">
+   			<div class="btn-group btn-group-xs" style="margin-top:5px; margin-bottom:20px;">
    			<!-- ko if: searchFilters().primaryFilter  -->
    				<!-- ko foreach: searchFilters().primaryFilter -->
    					<button data-bind="click: $parent.filter.bind('filter_val',key), css:{'btn btn-primary': key == $parent.primaryFilter()}">
