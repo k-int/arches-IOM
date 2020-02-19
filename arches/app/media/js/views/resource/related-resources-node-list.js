@@ -74,6 +74,7 @@ define([
             this.reportURL = arches.urls.resource_report;
             this.editURL = arches.urls.resource_editor;
 
+
             this.selectedItems = ko.computed(function(){
                 return this.items().filter(function(item){
                     initializeItem(item);

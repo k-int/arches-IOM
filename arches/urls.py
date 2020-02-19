@@ -20,7 +20,7 @@ from django.views.decorators.cache import cache_page
 from django.contrib.auth import views as auth_views
 from django.conf.urls import include, url
 from django.contrib.staticfiles.urls import staticfiles_urlpatterns
-from arches.app.views import concept, main, map, search, graph, api
+from arches.app.views import concept, main, map, search, graph, api, ciim
 from arches.app.views.admin import ReIndexResources
 from arches.app.views.graph import (
     GraphDesignerView,
@@ -44,6 +44,8 @@ from arches.app.views.resource import (
     ResourceDescriptors,
     ResourceEditLogView,
     ResourceTiles,
+    ResourceArtefactSearchView,
+    ResourceArtefactView
 )
 from arches.app.views.resource import NewResourceEditorView, ResourceActivityStreamPageView, ResourceActivityStreamCollectionView
 from arches.app.views.plugin import PluginView
@@ -67,7 +69,7 @@ uuid_regex = settings.UUID_REGEX
 
 urlpatterns = [
     url(r"^$", main.index, name="root"),
-    url(r"^index.htm", main.index, name="home"),
+    url(r"^home/", main.index, name="home"),
     url(r"^auth/password$", ChangePasswordView.as_view(), name="change_password"),
     url(r"^auth/signup$", SignupView.as_view(), name="signup"),
     url(r"^auth/confirm_signup$", ConfirmSignupView.as_view(), name="confirm_signup"),
@@ -175,6 +177,10 @@ urlpatterns = [
     url(r"^resource/(?P<resourceid>%s)/data/(?P<formid>%s)$" % (uuid_regex, uuid_regex), ResourceData.as_view(), name="resource_data"),
     url(r"^resource/(?P<resourceid>%s)/cards$" % uuid_regex, ResourceCards.as_view(), name="resource_cards"),
     url(r"^resource/history$", ResourceEditLogView.as_view(), name="edit_history"),
+    
+    url(r'^resource/(?P<resourceid>%s)/artefacts$' % uuid_regex, ResourceArtefactSearchView.as_view(), name='resource_artefact_search'),
+    url(r'^resource/ciim/(?P<basetype>[0-9A-Za-z_\-]+)/(?P<resourceid>%s)/view$' % uuid_regex, ResourceArtefactView.as_view(), name='ciim_resource'),
+
     url(r"^resource/related/(?P<resourceid>%s|())$" % uuid_regex, RelatedResourcesView.as_view(), name="related_resources"),
     url(r"^resource/related/candidates", RelatedResourcesView.as_view(action="get_candidates"), name="related_resource_candidates"),
     url(r"^resource/related/relatable", RelatedResourcesView.as_view(action="get_relatable_resources"), name="relatable_resources"),
@@ -220,6 +226,11 @@ urlpatterns = [
     url(r"^rdm/concepts/(?P<conceptid>%s|())$" % uuid_regex, api.Concepts.as_view(), name="concepts"),
     url(r"^plugins/(?P<pluginid>%s)$" % uuid_regex, PluginView.as_view(), name="plugins"),
     url(r"^plugins/(?P<slug>[-\w]+)$", PluginView.as_view(), name="plugins"),
+
+    url(r'^ciim/count$', ciim.get_count, name="ciim_count"),
+    url(r'^ciim/search$', ciim.search, name="ciim_search"),
+    url(r'^ciim/lookup$', ciim.lookup, name="ciim_lookup"),
+    
     url(r"^cards/(?P<resourceid>%s|())$" % uuid_regex, api.Card.as_view(), name="api_card"),
     url(r"^search_component_data/(?P<componentname>[-\w]+)$", api.SearchComponentData.as_view(), name="api_search_component_data"),
     url(r"^geojson$", api.GeoJSON.as_view(), name="geojson"),

@@ -54,6 +54,58 @@ import logging
 logger = logging.getLogger(__name__)
 
 
+@method_decorator(can_edit_resource_instance(), name='dispatch')
+class ResourceArtefactSearchView(BaseManagerView):
+
+    def get(self, request, graphid=None, resourceid=None):
+
+        context = self.get_context_data(
+            main_script='views/ciim/search',
+            resourceid=resourceid
+        )
+
+        context['nav']['icon'] = "fa fa-sitemap"
+        context['nav']['title'] = _("Browse Linked Resources")
+
+        return render(request, 'views/ciim/search.htm', context)
+
+
+
+@method_decorator(can_edit_resource_instance(), name='dispatch')
+class ResourceArtefactView(BaseManagerView):
+
+    def get(self, request, graphid=None, resourceid=None, basetype=None):
+        context = self.get_context_data(
+            main_script='views/ciim/artefact',
+            resourceid=resourceid,
+            basetype=basetype,
+            collections_online_url=settings.STATIC_COLLECTIONS_ONLINE_URL
+        )
+
+        context['nav']['icon'] = "fa fa-bookmark"
+        context['nav']['title'] = _("Related " + basetype)
+
+        view = 'views/ciim/generic.htm'
+
+        if basetype == 'object':
+            context['nav']['icon'] = "fa fa-cube"
+            view = 'views/ciim/object.htm'
+        elif basetype == 'agent':
+            context['nav']['icon'] = "fa fa-user"
+            context['nav']['title'] = _("Related " + "people & organisations")
+            view = 'views/ciim/agent.htm'
+        elif basetype == 'publication':
+            context['nav']['icon'] = "fa fa-book"
+            view = 'views/ciim/publication.htm'
+        elif basetype == 'archive':
+            context['nav']['icon'] = "fa fa-files-o"
+            view = 'views/ciim/archive.htm'
+        else:
+            context['nav']['icon'] = "fa fa-bookmark"
+            view = 'views/ciim/generic.htm'
+
+        return render(request, view, context)
+
 @method_decorator(can_edit_resource_instance(), name="dispatch")
 class ResourceListView(BaseManagerView):
     def get(self, request, graphid=None, resourceid=None):

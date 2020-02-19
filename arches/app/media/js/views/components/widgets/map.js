@@ -46,6 +46,7 @@ define([
             'defaultValue'
         ];
 
+
         WidgetViewModel.apply(this, [params]);
 
         this.geometryTypeList = ko.computed({
@@ -73,6 +74,7 @@ define([
             }
             return value.features.length;
         }, this);
+      
 
         if (params.widget) params.widgets = [params.widget];
 
