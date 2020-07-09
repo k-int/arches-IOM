@@ -55,14 +55,25 @@ COUCHDB_URL = "http://admin:admin@localhost:5984"  # defaults to localhost:5984
 # from http://django-guardian.readthedocs.io/en/stable/configuration.html#anonymous-user-name
 ANONYMOUS_USER_NAME = None
 
-ELASTICSEARCH_HTTP_PORT = 9200  # this should be in increments of 200, eg: 9400, 9600, 9800
-ELASTICSEARCH_TEMP_HTTP_ENDPOINT = "http://localhost:9800"
+ELASTICSEARCH_HTTP_PORT = 9500  # this should be in increments of 200, eg: 9400, 9600, 9800
+ELASTICSEARCH_TEMP_HTTP_ENDPOINT = "http://localhost:9200"
 SEARCH_BACKEND = "arches.app.search.search.SearchEngine"
 # see http://elasticsearch-py.readthedocs.org/en/master/api.html#elasticsearch.Elasticsearch
 ELASTICSEARCH_HOSTS = [{"host": "localhost", "port": ELASTICSEARCH_HTTP_PORT}]
 ELASTICSEARCH_CONNECTION_OPTIONS = {"timeout": 30}
 # a prefix to append to all elasticsearch indexes, note: must be lower case
 ELASTICSEARCH_PREFIX = "arches"
+
+#ciim es
+CIIM_ELASTICSEARCH_PUBLIC = {'url': 'http://localhost:9200/public'}
+
+
+CIIM_ELASTICSEARCH_PRIVATE = {'url': 'http://localhost:9200/private'}
+
+
+
+CIIM_PRIVATE_ES_GROUPS = ("Ciim Private ES")
+
 
 
 # a list of objects of the form below
@@ -204,6 +215,13 @@ MEDIA_URL = "/files/"
 # in apps' "static/" subdirectories and in STATICFILES_DIRS.
 # Example: "/home/media/media.lawrence.com/static/"
 STATIC_ROOT = ""
+
+STATIC_COLLECTIONS_ONLINE_URL = {   
+                                    'archive':      'https://www.imuseum.im/search/archive_record/view?id=',
+                                    'object':       'https://www.imuseum.im/search/object_record/view?id=',
+                                    'publication':  'https://www.imuseum.im/search/publication_record/view?id=',
+                                    'agent':        'https://www.imuseum.im/search/agent_record/view?id='
+                                }
 
 # URL prefix for static files.
 # Example: "http://media.lawrence.com/static/"

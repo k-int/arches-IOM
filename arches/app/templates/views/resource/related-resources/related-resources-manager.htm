@@ -85,6 +85,12 @@
                                     {% if user|can_edit_resource_instance %}
                                     <a data-bind="click: function () { window.open($parent.editURL + ko.unwrap(entityid)); }" href="javascript:void(0)"><i class="ion-ios-refresh-empty"></i>{% trans 'Edit' %}</a>
                                     {% endif %}
+
+
+
+                                    <a data-bind="click: zoomToPopupData" href="javascript:void(0)"><i class="fa fa-map-marker"></i> {% trans "Map" %}</a>
+
+                                   
                                 </div>
                             </div>
                         </div>

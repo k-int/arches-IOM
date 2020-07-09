@@ -198,20 +198,56 @@ define([
                         'loading': true,
                         'displayname': '',
                         'graph_name': '',
-                        'map_popup': ''
+                        'map_popup': '',
+                        'linkedTotalCount':ko.observable(1)
                     });
                     data = ko.mapping.fromJS(data);
                     data.reportURL = arches.urls.resource_report;
                     data.editURL = arches.urls.resource_editor;
+                    data.artefactSearchURL = arches.urls.resource_artefact_search;
+                    console.log("default val " +data.linkedTotalCount() );//= 1;
+                    //data.ciimresource = "889c3f25-7f14-37dc-aab4-48a674a5920b";
+
+                    var queryString = this.queryString();
+                    queryString.uuid = data.resourceinstanceid;
+
+                    $.ajax({
+                        url: arches.urls.ciim_count,
+                        method: 'GET',
+                        data: queryString               
+                    }).done(function(resp)
+                    {
+                        var linkedTotalCount = 0;
+
+                        console.log(resp);
+
+                        if(resp.aggregations.type.buckets)
+                        {
+                            resp.aggregations.type.buckets.forEach(bucket => linkedTotalCount += bucket.doc_count);
+                        }
+
+                         console.log("resource id : " +id);
+
+                        console.log(self.resourceLookup[id]);
+
+                        self.resourceLookup[id].linkedTotalCount(linkedTotalCount);
+
+                       // data.linkedTotalCount = linkedTotalCount;
+                    }, this);
 
                     self.resourceLookup[id] = data;
                     $.get(arches.urls.resource_descriptors + id, function(data) {
                         data.loading = false;
                         ko.mapping.fromJS(data, self.resourceLookup[id]);
+
+                         console.log(self.resourceLookup[id]);
                     });
                 }
                 self.resourceLookup[id].feature = feature;
                 self.resourceLookup[id].mapCard = self;
+
+             
+
                 return self.resourceLookup[id];
             }
         };
@@ -246,7 +282,7 @@ define([
                     bbox: arches.hexBinBounds
                 }), 'top-right');
 
-                self.layers.subscribe(self.updateLayers);
+                self.layers.subscribe(self.updatFeLayers);
 
                 var hoverFeature;
                 map.on('mousemove', function(e) {
@@ -332,6 +368,35 @@ define([
                 }
             });
         };
+
+        self.linkedTotalCount  = ko.observable(0);// 0;//MJ ADD
+
+        this.queryString = ko.computed(function() {
+            var params = {};
+            return params;
+        }, this);
+
+        console.log("in map.js");
+
+        this.getLinkedRecordsCount = function(data)
+        {
+     
+        console.log("getLinkedRecordsCount called");
+
+            //if(self.activeresource == data.resourceinstanceid && (self.activeresource != null && data.resourceinstanceid != null))
+            //{
+                  //do nothing as we have already loaded 
+            //}
+            //else
+            //{
+                  //update active resource uuid
+                 // self.activeresource = data.resourceinstanceid;
+                  //and load linked resources
+                
+           // }
+        }
+         
+        this.getLinkedRecordsCount();
     };
     return viewModel;
 });
