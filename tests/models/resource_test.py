@@ -29,16 +29,6 @@ from guardian.shortcuts import assign_perm, get_perms
 from arches.app.models import models
 from arches.app.models.resource import Resource
 from arches.app.models.tile import Tile
-from arches.app.search.mappings import (
-    prepare_terms_index,
-    delete_terms_index,
-    prepare_concepts_index,
-    delete_concepts_index,
-    prepare_search_index,
-    delete_search_index,
-    prepare_resource_relations_index,
-    delete_resource_relations_index,
-)
 from arches.app.utils.betterJSONSerializer import JSONSerializer, JSONDeserializer
 from arches.app.utils.data_management.resource_graphs.importer import import_graph as resource_graph_importer
 from arches.app.utils.exceptions import InvalidNodeNameException, MultipleNodesFoundException
@@ -55,16 +45,6 @@ class ResourceTests(ArchesTestCase):
     def setUpClass(cls):
         models.ResourceInstance.objects.all().delete()
 
-        delete_terms_index()
-        delete_concepts_index()
-        delete_search_index()
-        delete_resource_relations_index()
-
-        prepare_terms_index(create=True)
-        prepare_concepts_index(create=True)
-        prepare_search_index(create=True)
-        prepare_resource_relations_index(create=True)
-
         cls.client = Client()
         cls.client.login(username="admin", password="admin")
 
@@ -72,13 +52,13 @@ class ResourceTests(ArchesTestCase):
             archesfile = JSONDeserializer().deserialize(f)
         resource_graph_importer(archesfile["graph"])
 
-        cls.search_model_graphid = "e503a445-fa5f-11e6-afa8-14109fd34195"
-        cls.search_model_cultural_period_nodeid = "7a182580-fa60-11e6-96d1-14109fd34195"
-        cls.search_model_creation_date_nodeid = "1c1d05f5-fa60-11e6-887f-14109fd34195"
-        cls.search_model_destruction_date_nodeid = "e771b8a1-65fe-11e7-9163-14109fd34195"
-        cls.search_model_name_nodeid = "2fe14de3-fa61-11e6-897b-14109fd34195"
-        cls.search_model_sensitive_info_nodeid = "57446fae-65ff-11e7-b63a-14109fd34195"
-        cls.search_model_geom_nodeid = "3ebc6785-fa61-11e6-8c85-14109fd34195"
+        cls.search_model_graphid = "c9b37a14-17b3-11eb-a708-acde48001122"
+        cls.search_model_cultural_period_nodeid = "c9b3882e-17b3-11eb-a708-acde48001122"
+        cls.search_model_creation_date_nodeid = "c9b38568-17b3-11eb-a708-acde48001122"
+        cls.search_model_destruction_date_nodeid = "c9b3828e-17b3-11eb-a708-acde48001122"
+        cls.search_model_name_nodeid = "c9b37b7c-17b3-11eb-a708-acde48001122"
+        cls.search_model_sensitive_info_nodeid = "c9b38aea-17b3-11eb-a708-acde48001122"
+        cls.search_model_geom_nodeid = "c9b37f96-17b3-11eb-a708-acde48001122"
 
         cls.user = User.objects.create_user("test", "test@archesproject.org", "password")
         cls.user.groups.add(Group.objects.get(name="Guest"))
@@ -150,10 +130,7 @@ class ResourceTests(ArchesTestCase):
     @classmethod
     def tearDownClass(cls):
         cls.user.delete()
-        delete_terms_index()
-        delete_concepts_index()
-        delete_search_index()
-        delete_resource_relations_index()
+        models.GraphModel.objects.filter(pk=cls.search_model_graphid).delete()
 
     def test_get_node_value_string(self):
         """

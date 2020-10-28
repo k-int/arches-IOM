@@ -46,8 +46,6 @@ class BaseManagerView(TemplateView):
             exclude=[
                 "functions",
                 "ontology",
-                "subtitle",
-                "color",
                 "isactive",
                 "isresource",
                 "version",
@@ -73,6 +71,7 @@ class BaseManagerView(TemplateView):
         }
         context["user_is_reviewer"] = user_is_resource_reviewer(self.request.user)
         context["app_name"] = settings.APP_NAME
+        context["show_language_swtich"] = settings.SHOW_LANGUAGE_SWITCH
         return context
 
 

@@ -1,6 +1,10 @@
 import json, urllib
 from django.urls import reverse
 from arches.app.models import models
+from django.utils.translation import ugettext as _
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class BaseDataType(object):
@@ -86,7 +90,7 @@ class BaseDataType(object):
         source_config = {"type": "vector", "tiles": [tileserver_url]}
         count = None
         if preview == True:
-            count = models.TileModel.objects.filter(data__has_key=str(node.nodeid)).count()
+            count = models.TileModel.objects.filter(nodegroup_id=node.nodegroup_id, data__has_key=str(node.nodeid)).count()
             if count == 0:
                 source_config = {
                     "type": "geojson",
@@ -170,9 +174,14 @@ class BaseDataType(object):
             provisionaledits = tile["provisionaledits"]
         if data is not None and len(list(data.keys())) > 0:
             return data
-        elif provisionaledits is not None and len(list(provisionaledits.keys())) == 1:
+        elif provisionaledits is not None and len(list(provisionaledits.keys())) > 0:
+            if len(list(provisionaledits.keys())) > 1:
+                logger.warning(_("Multiple provisional edits. Returning first edit"))
             userid = list(provisionaledits.keys())[0]
             return provisionaledits[userid]["value"]
+        else:
+            logger.exception(_("Tile has no authoritative or provisional data"))
+
 
     def get_display_value(self, tile, node):
         """
@@ -203,6 +212,13 @@ class BaseDataType(object):
     def pre_tile_save(self, tile, nodeid):
         """
         Called during tile.save operation but before the tile is actually saved to the database
+
+        """
+        pass
+
+    def post_tile_delete(self, tile, nodeid):
+        """
+        Called following the tile.delete operation
 
         """
         pass
