@@ -9,17 +9,19 @@ define([
 ], function(arches, $, _, ko, koMapping, AlertViewModel, Step) {
     var Workflow = function(config) {
         var self = this;
+        
         this.steps = config.steps || [];
         this.activeStep = ko.observable();
         this.previousStep = ko.observable();
         this.hoverStep = ko.observable();
         this.ready = ko.observable(false);
+        this.tabbedWorkflow = ko.observable(ko.unwrap(config.tabbedWorkflow));
         this.loading = config.loading || ko.observable(false);
         this.alert = config.alert || ko.observable(null);
         this.state = {steps:[]};
         this.quitUrl = arches.urls.home;
         this.wastebinWarning = function(val){
-            return [["You are about to delete " + val + "."],["Are you sure you want to continue?"]];
+            return [[arches.translations.workflowWastbinWarning.replace("${val}", val)],[arches.translations.workflowWastbinWarning2]];
         };
         this.warning = '';
 
@@ -43,18 +45,22 @@ define([
             res.steps = res.steps ? JSON.parse(res.steps) : [];
             this.state = res;
         };
+        this.canFinish = ko.observable(false);
 
-        this.canFinish = ko.pureComputed(function(){
-            var required = false, canFinish = true, tileid = null;
+        this.checkCanFinish = function(){
+            var required = false, canFinish = true, complete = null;
             for(var i = 0; i < self.steps.length; i++) {
                 required = ko.unwrap(self.steps[i].required);
-                tileid = ko.unwrap(self.steps[i].tileid);
-                if(required && (tileid == "" || !tileid)) {
+                complete = ko.unwrap(self.steps[i].complete);
+                if(!complete && required) {
                     canFinish = false;
                     break;
                 }
             }
-            return canFinish;
+            self.canFinish(canFinish);
+        };
+        this.activeStep.subscribe(function() {
+            self.checkCanFinish();
         });
 
         this.finishWorkflow = function() {
@@ -67,10 +73,10 @@ define([
             var warnings = []
             self.state.steps.forEach(function(step) {
                 if (step.wastebin && step.wastebin.resourceid) {
-                    warnings.push(step.wastebin.description)
+                    warnings.push(step.wastebin.description);
                     resourcesToDelete.push(step.wastebin);
                 } else if (step.wastebin && step.wastebin.tile) {
-                    warnings.push(step.wastebin.description)
+                    warnings.push(step.wastebin.description);
                     tilesToDelete.push(step.wastebin);
                 }
             });
@@ -149,8 +155,8 @@ define([
 
         this.updateUrl = function() {
             //Updates the url with the parameters needed for the next step
-            var urlparams = JSON.parse(JSON.stringify(this.state)); //deep copy
-            urlparams.steps = JSON.stringify(this.state.steps);
+            var urlparams = JSON.parse(JSON.stringify(self.state)); //deep copy
+            urlparams.steps = JSON.stringify(self.state.steps);
             history.pushState(null, '', window.location.pathname + '?' + $.param(urlparams));
         };
 
@@ -159,12 +165,12 @@ define([
             var activeStep = val;
             var previousStep = self.previousStep();
             var resourceId;
-            if (previousStep && previousStep.hasOwnProperty('getStateProperties')) {
-                self.state.steps[previousStep._index] = previousStep.getStateProperties();
+            if (previousStep && previousStep.hasOwnProperty('defineStateProperties')) {
+                self.state.steps[previousStep._index] = previousStep.defineStateProperties();
                 self.state.steps[previousStep._index].complete = ko.unwrap(previousStep.complete);
                 self.state.activestep = val._index;
                 self.state.previousstep = previousStep._index;
-                if (!resourceId) {
+                if (!self.state.resourceid) {
                     resourceId = !!previousStep.resourceid ? ko.unwrap(previousStep.resourceid) : null;
                     self.state.resourceid = resourceId;
                 }
@@ -173,8 +179,27 @@ define([
             self.previousStep(activeStep);
         };
 
+        this.canStepBecomeActive = function(step) {
+            var canStepBecomeActive = false;
+            
+            if (step && !step.active()) {  /* prevents refresh if clicking on active tab */ 
+                var previousStep = self.steps[step._index - 1];
+
+                if (
+                    step.complete() 
+                    || ( previousStep && previousStep.complete() )
+                    || self.canFinish() === true
+                ) { 
+                    canStepBecomeActive = true; 
+                }
+            }
+
+            return canStepBecomeActive;
+        };
+
         this.next = function(){
             var activeStep = self.activeStep();
+
             if (activeStep && (activeStep.complete() || !activeStep.required()) && activeStep._index < self.steps.length - 1) {
                 self.activeStep(self.steps[activeStep._index+1]);
             }

@@ -24,6 +24,7 @@ from time import time
 from uuid import UUID
 from django.db import transaction
 from django.db.models import Q
+from django.contrib.auth.models import User, Group, Permission
 from django.core.exceptions import ObjectDoesNotExist
 from django.utils.translation import ugettext as _
 from arches.app.models import models
@@ -31,15 +32,24 @@ from arches.app.models.models import EditLog
 from arches.app.models.models import TileModel
 from arches.app.models.concept import get_preflabel_from_valueid
 from arches.app.models.system_settings import settings
-from arches.app.search.search_engine_factory import SearchEngineFactory
+from arches.app.search.search_engine_factory import SearchEngineInstance as se
+from arches.app.search.mappings import TERMS_INDEX, RESOURCE_RELATIONS_INDEX, RESOURCES_INDEX
 from arches.app.search.elasticsearch_dsl_builder import Query, Bool, Terms
 from arches.app.utils import import_class_from_string
+from arches.app.utils.label_based_graph import LabelBasedGraph
+from guardian.shortcuts import assign_perm, remove_perm
+from guardian.exceptions import NotUserNorGroup
 from arches.app.utils.betterJSONSerializer import JSONSerializer, JSONDeserializer
 from arches.app.utils.exceptions import (
     InvalidNodeNameException,
     MultipleNodesFoundException,
 )
-from arches.app.utils.permission_backend import user_is_resource_reviewer
+from arches.app.utils.permission_backend import (
+    user_is_resource_reviewer,
+    get_users_for_object,
+    get_restricted_users,
+    get_restricted_instances,
+)
 from arches.app.datatypes.datatypes import DataTypeFactory
 
 logger = logging.getLogger(__name__)
@@ -97,6 +107,11 @@ class Resource(models.ResourceInstance):
         """
         Saves and indexes a single resource
 
+        Keyword Arguments:
+        request -- the request object
+        user -- the user to associate the edit with if the user can't be derived from the request
+        index -- True(default) to index the resource, otherwise don't index the resource
+
         """
         graph = models.GraphModel.objects.get(graphid=self.graph_id)
         if graph.isactive is False:
@@ -104,6 +119,7 @@ class Resource(models.ResourceInstance):
             raise ModelInactiveError(message)
         request = kwargs.pop("request", None)
         user = kwargs.pop("user", None)
+        index = kwargs.pop("index", True)
         super(Resource, self).save(*args, **kwargs)
         for tile in self.tiles:
             tile.resourceinstance_id = self.resourceinstanceid
@@ -114,8 +130,15 @@ class Resource(models.ResourceInstance):
         else:
             user = request.user
 
+        try:
+            for perm in ("view_resourceinstance", "change_resourceinstance", "delete_resourceinstance"):
+                assign_perm(perm, user, self)
+        except NotUserNorGroup:
+            pass
+
         self.save_edit(user=user, edit_type="create")
-        self.index()
+        if index is True:
+            self.index()
 
     def get_root_ontology(self):
         """
@@ -154,7 +177,6 @@ class Resource(models.ResourceInstance):
 
         """
 
-        se = SearchEngineFactory().create()
         datatype_factory = DataTypeFactory()
         node_datatypes = {str(nodeid): datatype for nodeid, datatype in models.Node.objects.values_list("nodeid", "datatype")}
         tiles = []
@@ -186,10 +208,10 @@ class Resource(models.ResourceInstance):
                 fetchTiles=False, datatype_factory=datatype_factory, node_datatypes=node_datatypes
             )
 
-            documents.append(se.create_bulk_item(index="resources", id=document["resourceinstanceid"], data=document))
+            documents.append(se.create_bulk_item(index=RESOURCES_INDEX, id=document["resourceinstanceid"], data=document))
 
             for term in terms:
-                term_list.append(se.create_bulk_item(index="terms", id=term["_id"], data=term["_source"]))
+                term_list.append(se.create_bulk_item(index=TERMS_INDEX, id=term["_id"], data=term["_source"]))
 
         se.bulk_index(documents)
         se.bulk_index(term_list)
@@ -199,21 +221,21 @@ class Resource(models.ResourceInstance):
         Indexes all the nessesary items values of a resource to support search
 
         """
+
         if str(self.graph_id) != str(settings.SYSTEM_SETTINGS_RESOURCE_MODEL_ID):
-            se = SearchEngineFactory().create()
             datatype_factory = DataTypeFactory()
             node_datatypes = {str(nodeid): datatype for nodeid, datatype in models.Node.objects.values_list("nodeid", "datatype")}
             document, terms = self.get_documents_to_index(datatype_factory=datatype_factory, node_datatypes=node_datatypes)
             document["root_ontology_class"] = self.get_root_ontology()
             doc = JSONSerializer().serializeToPython(document)
-            se.index_data(index="resources", body=doc, id=self.pk)
+            se.index_data(index=RESOURCES_INDEX, body=doc, id=self.pk)
             for term in terms:
                 se.index_data("terms", body=term["_source"], id=term["_id"])
 
             for index in settings.ELASTICSEARCH_CUSTOM_INDEXES:
                 es_index = import_class_from_string(index["module"])(index["name"])
-                document, doc_id = es_index.get_documents_to_index(self, document["tiles"])
-                es_index.index_document(document=document, id=doc_id)
+                doc, doc_id = es_index.get_documents_to_index(self, document["tiles"])
+                es_index.index_document(document=doc, id=doc_id)
 
     def get_documents_to_index(self, fetchTiles=True, datatype_factory=None, node_datatypes=None):
         """
@@ -241,7 +263,12 @@ class Resource(models.ResourceInstance):
 
         tiles = list(models.TileModel.objects.filter(resourceinstance=self)) if fetchTiles else self.tiles
 
+        restrictions = get_restricted_users(self)
         document["tiles"] = tiles
+        document["permissions"] = {"users_without_read_perm": restrictions["cannot_read"]}
+        document["permissions"]["users_without_edit_perm"] = restrictions["cannot_write"]
+        document["permissions"]["users_without_delete_perm"] = restrictions["cannot_delete"]
+        document["permissions"]["users_with_no_access"] = restrictions["no_access"]
         document["strings"] = []
         document["dates"] = []
         document["domains"] = []
@@ -330,26 +357,42 @@ class Resource(models.ResourceInstance):
             permit_deletion = True
 
         if permit_deletion is True:
-            se = SearchEngineFactory().create()
             related_resources = self.get_related_resources(lang="en-US", start=0, limit=1000, page=0)
             for rr in related_resources["resource_relationships"]:
-                models.ResourceXResource.objects.get(pk=rr["resourcexid"]).delete()
+                # delete any related resource entries, also reindex the resource that references this resource that's being deleted
+                try:
+                    resourceXresource = models.ResourceXResource.objects.get(pk=rr["resourcexid"])
+                    resource_to_reindex = (
+                        resourceXresource.resourceinstanceidfrom_id
+                        if resourceXresource.resourceinstanceidto_id == self.resourceinstanceid
+                        else resourceXresource.resourceinstanceidto_id
+                    )
+                    resourceXresource.delete(deletedResourceId=self.resourceinstanceid)
+                    res = Resource.objects.get(pk=resource_to_reindex)
+                    res.load_tiles()
+                    res.index()
+                except ObjectDoesNotExist:
+                    se.delete(index=RESOURCE_RELATIONS_INDEX, id=rr["resourcexid"])
+
             query = Query(se)
             bool_query = Bool()
             bool_query.filter(Terms(field="resourceinstanceid", terms=[self.resourceinstanceid]))
             query.add_query(bool_query)
-            results = query.search(index="terms")["hits"]["hits"]
+            results = query.search(index=TERMS_INDEX)["hits"]["hits"]
             for result in results:
-                se.delete(index="terms", id=result["_id"])
-            se.delete(index="resources", id=self.resourceinstanceid)
+                se.delete(index=TERMS_INDEX, id=result["_id"])
+            se.delete(index=RESOURCES_INDEX, id=self.resourceinstanceid)
 
-            self.save_edit(edit_type="delete", user=user, note=self.displayname)
+            try:
+                self.save_edit(edit_type="delete", user=user, note=self.displayname)
+            except:
+                pass
             super(Resource, self).delete()
 
         return permit_deletion
 
     def get_related_resources(
-        self, lang="en-US", limit=settings.RELATED_RESOURCES_EXPORT_LIMIT, start=0, page=0,
+        self, lang="en-US", limit=settings.RELATED_RESOURCES_EXPORT_LIMIT, start=0, page=0, user=None, resourceinstance_graphid=None,
     ):
         """
         Returns an object that lists the related resources, the relationship types, and a reference to the current resource
@@ -361,53 +404,78 @@ class Resource(models.ResourceInstance):
             .exclude(isresource=False)
             .exclude(isactive=False)
         )
+
         graph_lookup = {
             str(graph.graphid): {"name": graph.name, "iconclass": graph.iconclass, "fillColor": graph.color} for graph in graphs
         }
+
         ret = {"resource_instance": self, "resource_relationships": [], "related_resources": [], "node_config_lookup": graph_lookup}
-        se = SearchEngineFactory().create()
 
         if page > 0:
             limit = settings.RELATED_RESOURCES_PER_PAGE
             start = limit * int(page - 1)
 
-        def get_relations(resourceinstanceid, start, limit):
+        def get_relations(resourceinstanceid, start, limit, resourceinstance_graphid=None):
             query = Query(se, start=start, limit=limit)
             bool_filter = Bool()
             bool_filter.should(Terms(field="resourceinstanceidfrom", terms=resourceinstanceid))
             bool_filter.should(Terms(field="resourceinstanceidto", terms=resourceinstanceid))
-            query.add_query(bool_filter)
-            return query.search(index="resource_relations")
 
-        resource_relations = get_relations(self.resourceinstanceid, start, limit)
+            if resourceinstance_graphid:
+                graph_id_filter = Bool()
+                graph_id_filter.should(Terms(field="resourceinstancefrom_graphid", terms=resourceinstance_graphid))
+                graph_id_filter.should(Terms(field="resourceinstanceto_graphid", terms=resourceinstance_graphid))
+                bool_filter.must(graph_id_filter)
+
+            query.add_query(bool_filter)
+
+            return query.search(index=RESOURCE_RELATIONS_INDEX)
+
+        resource_relations = get_relations(
+            resourceinstanceid=self.resourceinstanceid, start=start, limit=limit, resourceinstance_graphid=resourceinstance_graphid,
+        )
+
         ret["total"] = resource_relations["hits"]["total"]
         instanceids = set()
 
+        restricted_instances = get_restricted_instances(user, se) if user is not None else []
         for relation in resource_relations["hits"]["hits"]:
             try:
                 preflabel = get_preflabel_from_valueid(relation["_source"]["relationshiptype"], lang)
-                relation["_source"]["relationshiptype_label"] = preflabel["value"]
+                relation["_source"]["relationshiptype_label"] = preflabel["value"] or ""
             except:
-                relation["_source"]["relationshiptype_label"] = relation["_source"]["relationshiptype"]
+                relation["_source"]["relationshiptype_label"] = relation["_source"]["relationshiptype"] or ""
 
-            ret["resource_relationships"].append(relation["_source"])
-            instanceids.add(relation["_source"]["resourceinstanceidto"])
-            instanceids.add(relation["_source"]["resourceinstanceidfrom"])
-        if len(instanceids) > 0:
+            resourceid_to = relation["_source"]["resourceinstanceidto"]
+            resourceid_from = relation["_source"]["resourceinstanceidfrom"]
+            if resourceid_to not in restricted_instances and resourceid_from not in restricted_instances:
+                ret["resource_relationships"].append(relation["_source"])
+                instanceids.add(resourceid_to)
+                instanceids.add(resourceid_from)
+            else:
+                ret["total"]["value"] -= 1
+
+        if str(self.resourceinstanceid) in instanceids:
             instanceids.remove(str(self.resourceinstanceid))
 
         if len(instanceids) > 0:
-            related_resources = se.search(index="resources", id=list(instanceids))
+            related_resources = se.search(index=RESOURCES_INDEX, id=list(instanceids))
             if related_resources:
                 for resource in related_resources["docs"]:
-                    relations = get_relations(resource["_id"], 0, 0)
-                    resource["_source"]["total_relations"] = relations["hits"]["total"]
-                    ret["related_resources"].append(resource["_source"])
+                    relations = get_relations(
+                        resourceinstanceid=resource["_id"],
+                        start=0,
+                        limit=0,
+                    )
+                    if resource["found"]:
+                        resource["_source"]["total_relations"] = relations["hits"]["total"]
+                        ret["related_resources"].append(resource["_source"])
+
         return ret
 
     def copy(self):
         """
-        Returns a copy of this resource instance includeing a copy of all tiles associated with this resource instance
+        Returns a copy of this resource instance including a copy of all tiles associated with this resource instance
 
         """
         # need this here to prevent a circular import error
@@ -454,6 +522,20 @@ class Resource(models.ResourceInstance):
 
         return JSONSerializer().serializeToPython(ret)
 
+    def to_json(self, compact=True, hide_empty_nodes=False):
+        """
+        Returns resource represented as disambiguated JSON graph
+
+        Keyword Arguments:
+        compact -- type bool: hide superfluous node data
+        hide_empty_nodes -- type bool: hide nodes without data
+        """
+        label_based_graph = LabelBasedGraph.from_resource(resource=self, compact=compact, hide_empty_nodes=hide_empty_nodes)
+
+        _name, resource_graph = label_based_graph.popitem()
+
+        return resource_graph
+
     def get_node_values(self, node_name):
         """
         Take a node_name (string) as an argument and return a list of values.
@@ -463,7 +545,6 @@ class Resource(models.ResourceInstance):
         """
 
         nodes = models.Node.objects.filter(name=node_name, graph_id=self.graph_id)
-
         if len(nodes) > 1:
             raise MultipleNodesFoundException(node_name, nodes)
 
@@ -483,6 +564,21 @@ class Resource(models.ResourceInstance):
                         values.append(parse_node_value(value))
 
         return values
+
+    def remove_resource_instance_permissions(self):
+        groups = list(Group.objects.all())
+        users = list(User.objects.all())
+        for identity in groups + users:
+            for perm in ["no_access_to_resourceinstance", "view_resourceinstance", "change_resourceinstance", "delete_resourceinstance"]:
+                remove_perm(perm, identity, self)
+        self.index()
+
+    def add_permission_to_all(self, permission):
+        groups = list(Group.objects.all())
+        users = [user for user in User.objects.all() if user.is_superuser is False]
+        for identity in groups + users:
+            assign_perm(permission, identity, self)
+        self.index()
 
 
 def parse_node_value(value):
