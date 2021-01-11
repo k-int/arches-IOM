@@ -1,0 +1,65 @@
+{% extends "views/components/widgets/base.htm" %}
+{% load i18n %}
+
+{% block form %}
+<div class="row widget-wrapper" data-bind="visible: !newTileStep()">
+    <div class="form-group">
+        <label class="control-label widget-input-label" data-bind="text:label">
+        </label>
+        <!-- ko if: node -->
+        <i data-bind="css: {'ion-asterisk widget-label-required': node.isrequired}"></i>
+        <!-- /ko -->
+        <div class="col-xs-12 resource-instance-wrapper">
+            <input style="width:30%; display:inline-block;"
+                data-bind="
+                    value: value,
+                    select2Query: {
+                        select2Config: select2Config
+                    }
+                ">
+        </div>
+    </div>
+</div>
+<!-- ko if: newTileStep -->
+<div class="create-resource-instance-card-component" data-bind="with: newTileStep">
+    <div class="create-instance-header" style="display: flex; justify-content: space-between;">
+        <div class="new-instance-model-name">
+            <span>{% trans "New" %}</span>
+            <span data-bind="text: $parent.graphNames[graphid].name"></span>
+        </div>
+        <div data-bind="click: function(){$parent.close()}, clickBubble: false" class="close-new-step">
+            <i class="fa fa-times-circle"></i>
+        </div>
+    </div>
+  <!-- ko component: {
+  name: 'new-tile-step',
+  params: $data
+} --><!--/ko -->
+</div>
+<!-- /ko -->
+{% endblock form %}
+
+{% block config_form %}
+<div>
+    <div class="control-label">
+        {% trans "Placeholder" %}
+    </div>
+    <div class="col-xs-12 pad-no crud-widget-container">
+        <input placeholder="{% trans "Placeholder" %}"
+            class="form-control input-md widget-input"
+            data-bind="value: placeholder, valueUpdate: 'keyup'">
+    </div>
+</div>
+{% endblock config_form %}
+
+{% block report %}
+<dt data-bind="text: label"></dt>
+<!-- ko foreach: valueObjects -->
+<dd>
+    <a data-bind="text: name, attr: { href: reportUrl }" target="_blank"></a>
+</dd>
+<!-- /ko -->
+<!-- ko if: valueObjects().length === 0 -->
+<dd>{% trans "None" %}</dd>
+<!-- /ko -->
+{% endblock report %}

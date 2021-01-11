@@ -1,0 +1,153 @@
+<!--
+ARCHES - a program developed to inventory and manage immovable cultural heritage.
+Copyright (C) 2013 J. Paul Getty Trust and World Monuments Fund
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU Affero General Public License as
+published by the Free Software Foundation, either version 3 of the
+License, or (at your option) any later version.
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+GNU Affero General Public License for more details.
+You should have received a copy of the GNU Affero General Public License
+along with this program. If not, see <http://www.gnu.org/licenses/>.
+-->
+{% extends "base-manager.htm" %}
+{% load staticfiles %}
+{% load i18n %}
+
+{% block title %}
+{{ block.super }}
+{% trans "Resource Manager" %}
+{% endblock title %}
+
+
+{% block main_content %}
+<div class="scroll-y">
+
+    <!-- Default Page content-->
+    <div id="page-content" style="padding: 50px 50px 160px; margin-top: -1px;">
+    
+    <!-- ko if: showPaginator -->
+		<h3 class="search-title"><span data-bind="text: ('Results: '+ ((page()-1) * paginator.per_page() + 1)+' - '+((page()-1) * paginator.per_page() + artefacts().length)+' of '+total())"></span>
+        <div class="btn-group btn-group-xs pull-right" style="margin-bottom:20px;">
+            <button class="btn" data-bind="click: sort.bind('sort_val','asc'), css:{'btn-primary': 'asc' == sortOrder(), 'btn-default': 'asc' != sortOrder()}">Sort Ascending</button>
+            <button class="btn" data-bind="click: sort.bind('sort_val','desc'), css:{'btn-primary': 'desc' == sortOrder(), 'btn-default': 'desc' != sortOrder()}">Sort Descending</button>
+        </div>
+    </h3>
+		<!-- /ko -->
+		<!-- ko ifnot: showPaginator -->
+		<h3 class="search-title"><span data-bind="text: ('Results: '+ total())"></span>
+            <div class="btn-group btn-group-xs pull-right" style="margin-bottom:20px;">
+            <button class="btn" data-bind="click: sort.bind('sort_val','asc'), css:{'btn-primary': 'asc' == sortOrder(), 'btn-default': 'asc' != sortOrder()}">Sort Ascending</button>
+            <button class="btn" data-bind="click: sort.bind('sort_val','desc'), css:{'btn-primary': 'desc' == sortOrder(), 'btn-default': 'desc' != sortOrder()}">Sort Descending</button>
+        </div></h3>
+		<!-- /ko -->
+		
+     	<hr></hr>
+     	<div>Filters:</div>
+    	<!-- ko if: searchFilters()  -->
+   			<div class="btn-group btn-group-xs" style="margin-bottom:20px">
+   			<!-- ko if: searchFilters().primaryFilter  -->
+   				<!-- ko foreach: searchFilters().primaryFilter -->
+   					<button data-bind="click: $parent.filter.bind('filter_val',key), css:{'btn btn-primary': key == $parent.primaryFilter()}">
+   						<span data-bind="text: key + ' (' + doc_count +')'"></span>
+   						<!-- ko if: key == $parent.primaryFilter() -->
+   						<span class="glyphicon glyphicon-remove"></span>
+   						<!-- /ko -->
+   					</button>
+   				<!-- /ko -->
+   			<!-- /ko -->
+   			</div>
+	    <!-- /ko -->
+
+  
+	    
+  		<!-- ko foreach: artefacts -->
+        <!-- ko ifnot: _source.type.base === "agent" -->
+        <div class="search-listing" style="width:100%">
+			<h3 class="search-listing-title" data-bind="text: _source.arches.primarySort[0]"></h3>
+			   <div class="search-listing-body">
+            <!-- ko if: _source.lifecycle && _source.lifecycle.creation && _source.lifecycle.creation[0].date && _source.lifecycle.creation[0].date[0].value -->
+            <p data-bind="text: _source.lifecycle.creation[0].date[0].value"></p>
+            <!-- /ko -->
+            <p data-bind="text: _source.arches.primaryFilter[0]"></p>
+            </div>
+			<div class="search-listing-footer">
+				<a data-bind="click: function () { window.open($parent.viewURL().replace('basetype', ko.unwrap(_source.type.base)).replace('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', ko.unwrap(_source.admin.uuid))); }" href="javascript:void(0)"><i class="fa fa-code-fork"></i> View</a>  
+			</div>
+		</div>
+        <!-- /ko -->
+        <!-- ko if: _source.type.base === "agent"  -->
+        <div class="search-listing" style="width:100%">
+
+            <h3 class="search-listing-title" data-bind="text: _source.arches.primarySort[0]"></h3>
+
+            <div class="search-listing-body">
+            <!-- ko if: _source.memorials && _source.memorials[0].name && _source.memorials[0].name[0].value  -->
+            <p data-bind="text: _source.memorials[0].name[0].value"></p>
+            <!-- /ko -->
+            <p data-bind="text: _source.arches.primaryFilter[0]"></p>   
+            </div>
+
+            <div class="search-listing-footer">
+                <a data-bind="click: function () { window.open($parent.viewURL().replace('basetype', ko.unwrap(_source.type.base)).replace('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', ko.unwrap(_source.admin.uuid))); }" href="javascript:void(0)"><i class="fa fa-code-fork"></i> View</a>  
+            </div>
+        </div>
+        <!-- /ko -->
+		  <!-- /ko -->
+
+
+
+
+		<div class="margin-bottom-30"></div>
+
+        <!-- Pagination -->
+        <!-- ko if: showPaginator -->
+        <div id="paginator" data-bind="with: paginator">
+            <div class="text-center">
+                <ul class="pagination">
+                    <li><a data-bind="css: {'disabled': !has_previous()}, click: $parent.newPage.bind($parent, previous_page_number())" href="#">«</a></li>
+                    <!-- ko foreach: { data: pages, as: 'page' } -->
+                        <!-- ko if: page -->
+                        <li class="page" data-bind="click: $parents[1].newPage.bind($parents[1]), css: {'current active': (page == $parent.current_page())}">
+                            <a href="#" data-bind="text: page, attr:{'data-page':page}"></a>
+                        </li>
+                        <!-- /ko -->
+                        <!-- ko ifnot: page -->
+                        <li class="disabled"><a href="#">...</a></li>
+                        <!-- /ko -->
+                    <!-- /ko -->
+                    <li><a data-bind="css: { 'disabled': !has_next()}, click: $parent.newPage.bind($parent, next_page_number())" href="#">»</a></li>
+                </ul>
+            </div>
+        </div>
+        <!-- /ko -->
+        <!-- End Pagination -->
+
+    </div>
+</div>
+
+{% endblock main_content %}
+
+
+{% block pre_require_js %}
+<script>
+    {% autoescape off %}
+    define('search-data', [], function () {
+        return {
+            resourceid: "{{resourceid}}"
+        };
+    });
+
+    /* there can be only one pre_require_js block so need to include the stuff from base-manager.htm so we dont overwrite it */
+    define('view-data', [], function () {
+        return {
+            graphs: {{graphs}},
+            createableResources: {{createable_resources}},
+            help: "{{nav.help.template}}",
+        };
+    });
+    {% endautoescape %}
+</script>
+{% endblock pre_require_js %}

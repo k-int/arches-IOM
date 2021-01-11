@@ -1,0 +1,128 @@
+<!--
+ARCHES - a program developed to inventory and manage immovable cultural heritage.
+Copyright (C) 2013 J. Paul Getty Trust and World Monuments Fund
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU Affero General Public License as
+published by the Free Software Foundation, either version 3 of the
+License, or (at your option) any later version.
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+GNU Affero General Public License for more details.
+You should have received a copy of the GNU Affero General Public License
+along with this program. If not, see <http://www.gnu.org/licenses/>.
+-->
+{% extends "base-manager.htm" %}
+{% load staticfiles %}
+{% load i18n %}
+
+{% block title %}
+{{ block.super }}
+{% trans "Resource Manager" %}
+{% endblock title %}
+
+
+{% block main_content %}
+<div class="scroll-y">
+
+    <!-- Default Page content-->
+    <div id="page-content" style="padding: 50px 50px 160px; margin-top: -1px;">
+
+		<div data-bind="with: artefact">
+			<h3 class="search-title"><span data-bind="text: _source.summary_title"></span></h3>
+			<hr class="rp-card-section"/>
+			<!-- ko if: _source.lifecycle && _source.lifecycle.publication && _source.lifecycle.publication[0].date && _source.lifecycle.publication[0].date[0].value -->
+			<div class="rp-card-section">
+				<span style="font-weight:bold">Publication date:</span>
+				<span data-bind="text: _source.lifecycle.publication[0].date[0].value"></span>
+			</div>
+			<!-- /ko -->
+			<!-- ko if: _source.lifecycle && _source.lifecycle.publication && _source.lifecycle.publication[0].maker &&_source.lifecycle.publication[0].maker[0].summary_title -->
+			<div class="rp-card-section">
+				<span style="font-weight:bold">Author or editor:</span>
+				<span data-bind="text: _source.lifecycle.publication[0].maker[0].summary_title"></span>
+			</div>
+			<!-- /ko -->
+			<!-- ko if: _source.description -->
+			<div class="rp-card-section">
+				<span style="font-weight:bold">Notes:</span>
+				<span data-bind="text: _source.description[0].value"> </span>
+			</div>
+			<!-- /ko -->
+			<!-- ko if: _source.lifecycle && _source.lifecycle.publication && _source.lifecycle.publication[0].places && _source.lifecycle.publication[0].places[0].name && _source.lifecycle.publication[0].places[0].name[0].value -->
+			<div class="rp-card-section">
+				<span style="font-weight:bold">Publication Details:</span>
+				<span data-bind="text: _source.lifecycle.publication[0].places[0].name[0].value"></span>
+			</div>
+			<!-- /ko -->
+			<!-- ko if: _source.measurements && _source.measurements.display -->
+			<div class="rp-card-section">
+				<span style="font-weight:bold">Physical description:</span>
+				<span data-bind="text: _source.measurements.display"></span>
+			</div>
+			<!-- /ko -->
+			<!-- ko if: _source.name && _source.name[0].value -->
+			<div class="rp-card-section">
+				<span style="font-weight:bold">Item name:</span>
+				<span data-bind="text: _source.name[0].value"></span>
+			</div>
+			<!-- /ko -->
+			<!-- ko if: _source.collections && _source.collections[0].summary_title -->
+			<div class="rp-card-section">
+				<span style="font-weight:bold">Collection:</span>
+				<span data-bind="text: _source.collections[0].summary_title"></span>
+			</div>
+			<!-- /ko -->
+			<!-- ko if:  _source.identifier && _source.identifier[0].value -->
+			<div class="rp-card-section">
+				<span style="font-weight:bold">ID number:</span>
+				<span data-bind="text: _source.identifier[0].value"></span>
+			</div>
+			<!-- /ko -->
+			<!-- ko if: _source.classifications && _source.classifications[0].summary_title -->
+			<div class="rp-card-section">
+				<span style="font-weight:bold">Classification:</span>
+				<span data-bind="text: _source.classifications[0].summary_title"></span>
+			</div>
+			<!-- /ko -->
+			<!-- ko ifnot: _source.admin.status == "private" -->
+			<div class="rp-card-section">
+				<span style="font-weight:bold">Explore further:</span>
+				<a class="regular-link" data-bind="click: function () { window.open('{{collections_online_url.publication}}' + _source.admin.uid); }" href="javascript:void(0)"><span data-bind="text: '{{collections_online_url.publication}}' + _source.admin.uid"></span></a>
+			</div>
+			<!-- /ko -->
+			<!-- ko if: _source.multimedia -->
+	        <div>
+                <span style="font-weight:bold">Images:</span>
+                <img data-bind="src: '{{collections_online_url.publication}}' + _source.multimedia[0].admin.uid">
+            </div>
+            <!-- /ko --> 
+            <!-- ko if: _source.multimedia -->
+            <img style="margin-top:50px; width:100%;" data-bind="attr:{src: 'https://www.imuseum.im/media/' + _source.multimedia[0].processed.large.location}">
+            <!-- /ko --> 
+		</div>
+    </div>
+</div>
+
+{% endblock main_content %}
+
+{% block pre_require_js %}
+<script>
+    {% autoescape off %}
+    define('search-data', [], function () {
+        return {
+            resourceid: "{{resourceid}}"
+        };
+    });
+
+    /* there can be only one pre_require_js block so need to include the stuff from base-manager.htm so we dont overwrite it */
+    define('view-data', [], function () {
+        return {
+            graphs: {{graphs}},
+            createableResources: {{createable_resources}},
+            help: "{{nav.help.template}}",
+        };
+    });
+    {% endautoescape %}
+</script>
+{% endblock pre_require_js %}
