@@ -1,6 +1,10 @@
 import json, urllib
 from django.urls import reverse
 from arches.app.models import models
+from django.utils.translation import ugettext as _
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class BaseDataType(object):
@@ -9,6 +13,14 @@ class BaseDataType(object):
 
     def validate(self, value, row_number=None, source=None, node=None, nodeid=None):
         return []
+
+    def create_error_message(self, value, source, row_number, message):
+        source_info = "{0} {1}".format(source, row_number) if row_number else ""
+        error_message = {
+            "type": "ERROR",
+            "message": _("{0} error, {1} {2} - {3}. Unable to save.").format(self.datatype_model.datatype, value, source_info, message),
+        }
+        return error_message
 
     def append_to_document(self, document, nodevalue, nodeid, tile, provisional=False):
         """
@@ -26,12 +38,19 @@ class BaseDataType(object):
     def values_match(self, value1, value2):
         return value1 == value2
 
-    def transform_import_values(self, value, nodeid):
+    def transform_value_for_tile(self, value, **kwargs):
         """
         Transforms values from probably string/wkt representation to specified
         datatype in arches
         """
         return value
+
+    def update(self, tile, data, nodeid, action):
+        """
+        Updates the tile.data value of a given datatype and returns the updated
+        value
+        """
+        pass
 
     def transform_export_values(self, value, *args, **kwargs):
         """
@@ -79,7 +98,7 @@ class BaseDataType(object):
         source_config = {"type": "vector", "tiles": [tileserver_url]}
         count = None
         if preview == True:
-            count = models.TileModel.objects.filter(data__has_key=str(node.nodeid)).count()
+            count = models.TileModel.objects.filter(nodegroup_id=node.nodegroup_id, data__has_key=str(node.nodeid)).count()
             if count == 0:
                 source_config = {
                     "type": "geojson",
@@ -163,16 +182,26 @@ class BaseDataType(object):
             provisionaledits = tile["provisionaledits"]
         if data is not None and len(list(data.keys())) > 0:
             return data
-        elif provisionaledits is not None and len(list(provisionaledits.keys())) == 1:
+        elif provisionaledits is not None and len(list(provisionaledits.keys())) > 0:
+            if len(list(provisionaledits.keys())) > 1:
+                logger.warning(_("Multiple provisional edits. Returning first edit"))
             userid = list(provisionaledits.keys())[0]
             return provisionaledits[userid]["value"]
+        else:
+            logger.exception(_("Tile has no authoritative or provisional data"))
+
 
     def get_display_value(self, tile, node):
         """
         Returns a list of concept values for a given node
         """
         data = self.get_tile_data(tile)
-        return str(data[str(node.nodeid)])
+
+        if data:
+            display_value = data.get(str(node.nodeid))
+
+            if display_value:
+                return str(display_value)
 
     def get_search_terms(self, nodevalue, nodeid=None):
         """
@@ -193,6 +222,20 @@ class BaseDataType(object):
         """
         pass
 
+    def pre_tile_save(self, tile, nodeid):
+        """
+        Called during tile.save operation but before the tile is actually saved to the database
+
+        """
+        pass
+
+    def post_tile_delete(self, tile, nodeid):
+        """
+        Called following the tile.delete operation
+
+        """
+        pass
+
     def is_a_literal_in_rdf(self):
         """
         Convenience method to determine whether or not this datatype's `to_rdf` method will express
@@ -202,6 +245,9 @@ class BaseDataType(object):
         True: `to_rdf()` turns the range node tile data into a suitable Literal value
         False:  `to_rdf()` uses the data to construct something more complex.
         """
+        return False
+
+    def accepts_rdf_uri(self, uri):
         return False
 
     def get_rdf_uri(self, node, data, which="r"):
@@ -240,6 +286,9 @@ class BaseDataType(object):
     def from_rdf(self, json_ld_node):
         raise NotImplementedError
 
+    def validate_from_rdf(self, value):
+        return self.validate(value)
+
     def collects_multiple_values(self):
         """
         Data type that can collect multiple values at once like DomainListDataType, etc...
@@ -265,3 +314,25 @@ class BaseDataType(object):
         """
 
         return False
+
+    def default_es_mapping(self):
+        """
+        Default mapping if not specified is a text field
+        """
+
+        text_mapping = {"type": "text", "fields": {"keyword": {"ignore_above": 256, "type": "keyword"}}}
+        return text_mapping
+
+    def get_es_mapping(self, nodeid):
+        """
+        Gets the es mapping associoated with the datatype
+        """
+
+        ret = None
+        default_mapping = self.default_es_mapping()
+        if default_mapping:
+            ret = {"properties": {"tiles": {"type": "nested", "properties": {"data": {"properties": {str(nodeid): default_mapping}}},}}}
+        return ret
+
+    def disambiguate(self, value):
+        return value

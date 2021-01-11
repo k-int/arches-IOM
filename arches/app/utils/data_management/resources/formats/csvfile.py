@@ -27,6 +27,8 @@ from arches.app.utils.data_management.resource_graphs import exporter as GraphEx
 from arches.app.models.resource import Resource
 from arches.app.models.system_settings import settings
 from arches.app.datatypes.datatypes import DataTypeFactory
+import arches.app.utils.task_management as task_management
+from django.core.exceptions import ObjectDoesNotExist
 from django.db import transaction
 from django.db.models import Q
 from django.utils.translation import ugettext as _
@@ -235,7 +237,7 @@ class CsvWriter(Writer):
             relations_file.append({"name": csv_name, "outputfile": dest})
 
             relations = ResourceXResource.objects.filter(
-                Q(resourceinstanceidfrom__in=resourceids) | Q(resourceinstanceidto__in=resourceids)
+                Q(resourceinstanceidfrom__in=resourceids) | Q(resourceinstanceidto__in=resourceids), tileid__isnull=True
             ).values(*csv_header)
             for relation in relations:
                 relation["datestarted"] = relation["datestarted"] if relation["datestarted"] is not None else ""
@@ -322,9 +324,21 @@ class TileCsvWriter(Writer):
 
 class CsvReader(Reader):
     def __init__(self):
+        self.errors = []
         super(CsvReader, self).__init__()
 
-    def save_resource(self, populated_tiles, resourceinstanceid, legacyid, resources, target_resource_model, bulk, save_count, row_number):
+    def save_resource(
+        self,
+        populated_tiles,
+        resourceinstanceid,
+        legacyid,
+        resources,
+        target_resource_model,
+        bulk,
+        save_count,
+        row_number,
+        prevent_indexing,
+    ):
         # create a resource instance only if there are populated_tiles
         errors = []
         if len(populated_tiles) > 0:
@@ -344,9 +358,11 @@ class CsvReader(Reader):
                     del resources[:]  # clear out the array
             else:
                 try:
-                    newresourceinstance.save()
+                    newresourceinstance.save(index=(not prevent_indexing))
+
                 except TransportError as e:
-                    cause = json.dumps(e.info["error"]["caused_by"], indent=1)
+
+                    cause = json.dumps(e.info["error"]["reason"], indent=1)
                     msg = "%s: WARNING: failed to index document in resource: %s %s. Exception detail:\n%s\n" % (
                         datetime.datetime.now(),
                         resourceinstanceid,
@@ -383,9 +399,17 @@ class CsvReader(Reader):
             print("%s resources processed" % str(save_count))
 
     def import_business_data(
-        self, business_data=None, mapping=None, overwrite="append", bulk=False, create_concepts=False, create_collections=False
+        self,
+        business_data=None,
+        mapping=None,
+        overwrite="append",
+        bulk=False,
+        create_concepts=False,
+        create_collections=False,
+        prevent_indexing=False,
     ):
         # errors = businessDataValidator(self.business_data)
+        celery_worker_running = task_management.check_if_celery_available()
 
         print("Starting import of business data")
         self.start = time()
@@ -463,7 +487,8 @@ class CsvReader(Reader):
                         Please add a 'ResourceID' column with a unique resource identifier."
                     )
                     print("*" * 80)
-                    sys.exit()
+                    if celery_worker_running is False:  # prevents celery chord from breaking on WorkerLostError
+                        sys.exit()
                 graphid = mapping["resource_model_id"]
                 blanktilecache = {}
                 populated_nodegroups = {}
@@ -534,7 +559,8 @@ class CsvReader(Reader):
                         Please sort your csv file by ResourceID and try import again."
                     )
                     print("*" * 80)
-                    sys.exit()
+                    if celery_worker_running is False:  # prevents celery chord from breaking on WorkerLostError
+                        sys.exit()
 
                 def create_reference_data(new_concepts, create_collections):
                     errors = []
@@ -723,7 +749,7 @@ class CsvReader(Reader):
                                 if collection_id is not None:
                                     value = concept_lookup.lookup_labelid_from_label(value, collection_id)
                         try:
-                            value = datatype_instance.transform_import_values(value, nodeid)
+                            value = datatype_instance.transform_value_for_tile(value)
                             errors = datatype_instance.validate(value, row_number=row_number, source=source, nodeid=nodeid)
                         except Exception as e:
                             errors.append(
@@ -765,6 +791,8 @@ class CsvReader(Reader):
 
                 def check_required_nodes(tile, parent_tile, required_nodes, all_nodes):
                     # Check that each required node in a tile is populated.
+                    if settings.BYPASS_REQUIRED_VALUE_TILE_VALIDATION:
+                        return
                     errors = []
                     if len(required_nodes) > 0:
                         if bool(tile.data):
@@ -802,7 +830,15 @@ class CsvReader(Reader):
 
                         save_count = save_count + 1
                         self.save_resource(
-                            populated_tiles, resourceinstanceid, legacyid, resources, target_resource_model, bulk, save_count, row_number
+                            populated_tiles,
+                            resourceinstanceid,
+                            legacyid,
+                            resources,
+                            target_resource_model,
+                            bulk,
+                            save_count,
+                            row_number,
+                            prevent_indexing,
                         )
 
                         # reset values for next resource instance
@@ -828,7 +864,7 @@ class CsvReader(Reader):
                         if list(source_data[0].keys()):
                             try:
                                 target_resource_model = all_nodes.get(nodeid=list(source_data[0].keys())[0]).graph_id
-                            except Exception as e:
+                            except ObjectDoesNotExist as e:
                                 print("*" * 80)
                                 print(
                                     "ERROR: No resource model found. Please make sure the resource model \
@@ -836,7 +872,8 @@ class CsvReader(Reader):
                                 )
                                 print(e)
                                 print("*" * 80)
-                                sys.exit()
+                                if celery_worker_running is False:  # prevents celery chord from breaking on WorkerLostError
+                                    sys.exit()
 
                         target_tile = get_blank_tile(source_data)
                         if "TileID" in row and row["TileID"] is not None:
@@ -988,23 +1025,38 @@ class CsvReader(Reader):
 
                 if "legacyid" in locals():
                     self.save_resource(
-                        populated_tiles, resourceinstanceid, legacyid, resources, target_resource_model, bulk, save_count, row_number
+                        populated_tiles,
+                        resourceinstanceid,
+                        legacyid,
+                        resources,
+                        target_resource_model,
+                        bulk,
+                        save_count,
+                        row_number,
+                        prevent_indexing,
                     )
 
                 if bulk:
                     print("Time to create resource and tile objects: %s" % datetime.timedelta(seconds=time() - self.start))
                     Resource.bulk_save(resources=resources)
-                print(_(f"Total resources saved: {save_count + 1}"))
+                save_count = save_count + 1
+                print(_("Total resources saved: {save_count}").format(**locals()))
 
         except Exception as e:
             exc_type, exc_value, exc_traceback = sys.exc_info()
             formatted = traceback.format_exception(exc_type, exc_value, exc_traceback)
             if len(formatted):
                 for message in formatted:
-                    print(message)
+                    logger.error(message)
 
         finally:
-            pass
+            for e in self.errors:
+                if e["type"] == "WARNING":
+                    logger.warn(e["message"])
+                elif e["type"] == "ERROR":
+                    logger.error(e["message"])
+                else:
+                    logger.info(e["message"])
 
 
 class TileCsvReader(Reader):
