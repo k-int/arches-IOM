@@ -24,29 +24,38 @@ from django.http import HttpResponseNotFound, HttpResponse,JsonResponse
 from arches.app.models.system_settings import settings
 from arches.app.utils.pagination import get_paginator
 from arches.app.utils.betterJSONSerializer import JSONSerializer, JSONDeserializer
-
+from datetime import datetime
 
 logging.basicConfig(level=logging.INFO, format='%(message)s')
 logger = logging.getLogger()
-logger.addHandler(logging.FileHandler('C:/Arches/iom5/iom5/ciim.log', 'a'))
+# logger.addHandler(logging.FileHandler('C:/Arches/iom5/iom5/ciim.log', 'a'))
 print = logger.info
 
 print('-------------------CIIM PY FILE-----------------')
 
 def get_count(request):
+	print("Get count function")
 	user = request.user
 	# if the user is in the private es group, use the private url. Else use public 
 	if user.groups.filter(name=settings.CIIM_PRIVATE_ES_GROUPS).exists(): 
 		url = settings.CIIM_ELASTICSEARCH_PRIVATE['url'] + "/_search"
 	else: 
 		url = settings.CIIM_ELASTICSEARCH_PUBLIC['url'] + "/_search"
-	print(url)
+	#print("User private?")
+	#print(user.groups.filter(name=settings.CIIM_PRIVATE_ES_GROUPS).exists())
+	#print(datetime.now())
+	#print(url)
 	uuid = request.GET.get('uuid')
-	
-	json_q = json.dumps({"query":{"bool":{"must":[{"match":{"arches.sites":uuid}}],"must_not":[{"term":{"type.base":"site"}}],"should":[]}},"from":0,"size":10,"sort":[],"aggs":{"type":{"terms":{"field":"type.base"}}}}) 
+	print(uuid)
+	#uuid =f'"{uuid}"'
+	print(uuid)	
+	json_q = json.dumps({"query":{"bool":{"must":[{"match":{"arches.sites.keyword":uuid}}],"must_not":[{"term":{"type.base":"site"}}, {"term": {"admin.status":"invalid"}}],"should":[]}},"from":0,"size":10,"sort":[],"aggs":{"type":{"terms":{"field":"type.base"}}}}) 
 	headers = {'Content-Type' : 'application/json'}
+	#print("Query:")
+	print(json_q)
 	ret=requests.get(url, headers=headers,  data = json_q)  
-
+	#print("Response:")
+	#print(ret.json())
 	return JsonResponse(ret.json(), safe=False) 
 
 def search(request):
@@ -78,9 +87,9 @@ def search(request):
     #"889c3f25-7f14-37dc-aab4-48a674a5920b"
 	#json_q = json.dumps({"query":{"bool":{"must":[{"match":{"arches.sites":uuid}},{"match":{"base.type":primaryFilter}}],"must_not":[],"should":[]}},"from":(settings.SEARCH_ITEMS_PER_PAGE * (page - 1)),"size":settings.SEARCH_ITEMS_PER_PAGE,"sort":[],"aggs":{"type":{"terms":{"field":"type.base"}}}}) 
 	if primaryFilter == '*':
-		json_q = json.dumps({"query":{"bool":{"must":[{"match":{"arches.sites":uuid}}],"must_not":[{"term":{"type.base":"site"}}],"should":[]}},"from":(settings.SEARCH_ITEMS_PER_PAGE * (page - 1)),"size":settings.SEARCH_ITEMS_PER_PAGE,"sort":[{"arches.primarySort.keyword":{"order":sortOrder}}],"aggs":{"type":{"terms":{"field":"type.base"}},"primaryFilter":{"terms":{"field":"arches.primaryFilter.keyword"}}}}) 
+		json_q = json.dumps({"query":{"bool":{"must":[{"match":{"arches.sites.keyword":uuid}}],"must_not":[{"term":{"type.base":"site"}}, {"term": {"admin.status":"invalid"}}],"should":[]}},"from":(settings.SEARCH_ITEMS_PER_PAGE * (page - 1)),"size":settings.SEARCH_ITEMS_PER_PAGE,"sort":[{"arches.primarySort.keyword":{"order":sortOrder}}],"aggs":{"type":{"terms":{"field":"type.base"}},"primaryFilter":{"terms":{"field":"arches.primaryFilter.keyword"}}}}) 
 	else:
-		json_q = json.dumps({"query":{"bool":{"must":[{"match":{"arches.sites":uuid}},{"match":{"arches.primaryFilter":primaryFilter}}],"must_not":[{"term":{"type.base":"site"}}],"should":[]}},"from":(settings.SEARCH_ITEMS_PER_PAGE * (page - 1)),"size":settings.SEARCH_ITEMS_PER_PAGE,"sort":[{"arches.primarySort.keyword":{"order":sortOrder}}],"aggs":{"type":{"terms":{"field":"type.base"}},"primaryFilter":{"terms":{"field":"arches.primaryFilter.keyword"}}}}) 
+		json_q = json.dumps({"query":{"bool":{"must":[{"match":{"arches.sites.keyword":uuid}},{"match":{"arches.primaryFilter":primaryFilter}}],"must_not":[{"term":{"type.base":"site"}}, {"term": {"admin.status":"invalid"}}],"should":[]}},"from":(settings.SEARCH_ITEMS_PER_PAGE * (page - 1)),"size":settings.SEARCH_ITEMS_PER_PAGE,"sort":[{"arches.primarySort.keyword":{"order":sortOrder}}],"aggs":{"type":{"terms":{"field":"type.base"}},"primaryFilter":{"terms":{"field":"arches.primaryFilter.keyword"}}}}) 
 	
 	headers = {'Content-Type' : 'application/json'}
 	results=requests.get(url, headers=headers,  data = json_q).json()

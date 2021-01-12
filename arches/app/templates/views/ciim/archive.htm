@@ -85,10 +85,12 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
                 <span data-bind="text: _source.classifications[0].summary_title"></span>
             </div>
             <!-- /ko -->
+            <!-- ko ifnot: _source.admin.status == "private" -->
             <div class="rp-card-section">
                 <span style="font-weight:bold">Explore further:</span>
                 <a class="regular-link" data-bind="click: function () { window.open('{{collections_online_url.archive}}' + _source.admin.uid); }" href="javascript:void(0)"><span data-bind="text: '{{collections_online_url.archive}}' + _source.admin.uid"></span></a>
             </div>
+            <!-- /ko -->
             <!-- ko if: _source.multimedia -->
             <img style="margin-top:50px; width:100%;" data-bind="attr:{src: 'https://www.imuseum.im/media/' + _source.multimedia[0].processed.large.location}">
             <!-- /ko --> 
