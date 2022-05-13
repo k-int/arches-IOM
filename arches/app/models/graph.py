@@ -335,10 +335,9 @@ class Graph(models.GraphModel):
                 old.update({k: v})
         return old, new
 
-    def _update_node(self, node, datatype_factory, se):
+    def update_es_node_mapping(self, node, datatype_factory, se):
         already_saved = models.Node.objects.filter(pk=node.nodeid).exists()
         saved_node_datatype = None
-        node.save()
         if already_saved:
             saved_node = models.Node.objects.get(pk=node.nodeid)
             saved_node_datatype = saved_node.datatype
@@ -371,10 +370,12 @@ class Graph(models.GraphModel):
 
             if nodeid is not None:
                 node = self.nodes[nodeid]
-                self._update_node(node, datatype_factory, se)
+                self.update_es_node_mapping(node, datatype_factory, se)
+                node.save()
             else:
                 for node in self.nodes.values():
-                    self._update_node(node, datatype_factory, se)
+                    self.update_es_node_mapping(node, datatype_factory, se)
+                    node.save()
 
             for edge in self.edges.values():
                 edge.save()
@@ -689,6 +690,10 @@ class Graph(models.GraphModel):
         # returns a list of node ids sorted by nodes that are collector nodes first and then others last
         node_ids = sorted(copy_of_self.nodes, key=lambda node_id: copy_of_self.nodes[node_id].is_collector, reverse=True)
 
+        for nodeid, node in copy_of_self.nodes.items():
+            if node.datatype == "geojson-feature-collection":
+                node.config["advancedStyle"] = ""
+                node.config["advancedStyling"] = False
         copy_of_self.pk = uuid.uuid1()
         node_map = {}
         card_map = {}

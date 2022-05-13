@@ -18,6 +18,10 @@ define(['knockout', 'underscore', 'viewmodels/widget', 'bindings/formattedNumber
 
         var self = this;
 
+        this.disable = ko.computed(() => {
+            return ko.unwrap(self.disabled) || ko.unwrap(self.uneditable); 
+        }, self);
+
         this.updateVal = ko.computed(function(){
             if (self.value() !== null && self.value() !== undefined) { //allow a value of 0 to pass
                 var val = self.value();
@@ -37,7 +41,7 @@ define(['knockout', 'underscore', 'viewmodels/widget', 'bindings/formattedNumber
             return val || self.value();
         }, self).extend({throttle: 600});
 
-        this.value(this.updateVal());
+        this.value(Number(this.updateVal()));
 
         this.displayValue = ko.pureComputed(function() {
             if (self.value() !== null && self.value() !== undefined) {

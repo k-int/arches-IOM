@@ -2,6 +2,7 @@
 <!-- ko ifnot: $data.search -->
 <!--ko let: {self: $data} -->
 <div class="node-widget-label concept-label" style="width:540px;">
+
     <div class="control-label">
         {% trans "Resource Model" %}
     </div>
@@ -83,6 +84,19 @@
             </div>
         </div>
     </div>
+
+    <div class="relative">
+        <label class="col-xs-12 control-label widget-input-label">
+            {% trans "Search String - use to filter resources displayed" %} <i class="fa fa-eye" style="cursor: pointer;" data-bind="click: openSearch"
+                title="{% trans " View search string..." %}"></i>
+        </label>
+    </div>
+    
+    <div class="col-xs-12" style="padding-bottom: 10px;">
+        <input type="text" placeholder="{% trans " Enter Search String here..." %}" class="form-control" style=""
+            data-bind="textInput: config.searchString">
+    </div>
+
 </div>
 <!-- /ko -->
 <!-- /ko -->
@@ -92,9 +106,11 @@
     <select class="resources" data-bind="value: op, chosen: {width: '100%', disable_search_threshold: 15}">
         <option value="">{% trans "References" %}</option>
         <option value="!">{% trans "Does not reference" %}</option>
+        <option value="null">{% trans "Has no value" %}</option>
+        <option value="not_null">{% trans "Has any value" %}</option>
     </select>
 </div>
-<div class="col-md-8 col-lg-9 resource-instance-search">
+<div class="col-md-8 col-lg-9 resource-instance-search" data-bind="visible: op() !== 'null' && op() !== 'not_null'">
     <!-- ko component: {
         name:  datatype.datatype.includes('list') ? 'resource-instance-multiselect-widget' : 'resource-instance-select-widget',
         params: {

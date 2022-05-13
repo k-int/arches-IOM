@@ -34,9 +34,10 @@ from arches.app.models.concept import get_preflabel_from_valueid
 from arches.app.models.system_settings import settings
 from arches.app.search.search_engine_factory import SearchEngineInstance as se
 from arches.app.search.mappings import TERMS_INDEX, RESOURCE_RELATIONS_INDEX, RESOURCES_INDEX
-from arches.app.search.elasticsearch_dsl_builder import Query, Bool, Terms
+from arches.app.search.elasticsearch_dsl_builder import Query, Bool, Terms, Nested
 from arches.app.utils import import_class_from_string
 from arches.app.utils.label_based_graph import LabelBasedGraph
+from arches.app.utils.label_based_graph_v2 import LabelBasedGraph as LabelBasedGraphV2
 from guardian.shortcuts import assign_perm, remove_perm
 from guardian.exceptions import NotUserNorGroup
 from arches.app.utils.betterJSONSerializer import JSONSerializer, JSONDeserializer
@@ -89,7 +90,7 @@ class Resource(models.ResourceInstance):
     def displayname(self):
         return self.get_descriptor("name")
 
-    def save_edit(self, user={}, note="", edit_type=""):
+    def save_edit(self, user={}, note="", edit_type="", transaction_id=None):
         timestamp = datetime.datetime.now()
         edit = EditLog()
         edit.resourceclassid = self.graph_id
@@ -100,6 +101,8 @@ class Resource(models.ResourceInstance):
         edit.user_lastname = getattr(user, "last_name", "")
         edit.note = note
         edit.timestamp = timestamp
+        if transaction_id is not None:
+            edit.transactionid = transaction_id
         edit.edittype = edit_type
         edit.save()
 
@@ -120,10 +123,11 @@ class Resource(models.ResourceInstance):
         request = kwargs.pop("request", None)
         user = kwargs.pop("user", None)
         index = kwargs.pop("index", True)
+        transaction_id = kwargs.pop("transaction_id", None)
         super(Resource, self).save(*args, **kwargs)
         for tile in self.tiles:
             tile.resourceinstance_id = self.resourceinstanceid
-            saved_tile = tile.save(request=request, index=False)
+            saved_tile = tile.save(request=request, index=False, transaction_id=transaction_id)
         if request is None:
             if user is None:
                 user = {}
@@ -136,7 +140,7 @@ class Resource(models.ResourceInstance):
         except NotUserNorGroup:
             pass
 
-        self.save_edit(user=user, edit_type="create")
+        self.save_edit(user=user, edit_type="create", transaction_id=transaction_id)
         if index is True:
             self.index()
 
@@ -152,13 +156,15 @@ class Resource(models.ResourceInstance):
 
         return root_ontology_class
 
-    def load_tiles(self):
+    def load_tiles(self, user=None, perm=None):
         """
         Loads the resource's tiles array with all the tiles from the database as a flat list
 
         """
 
         self.tiles = list(models.TileModel.objects.filter(resourceinstance=self))
+        if user:
+            self.tiles = [tile for tile in self.tiles if tile.nodegroup_id is not None and user.has_perm(perm, tile.nodegroup)]
 
     # # flatten out the nested tiles into a single array
     def get_flattened_tiles(self):
@@ -168,7 +174,7 @@ class Resource(models.ResourceInstance):
         return tiles
 
     @staticmethod
-    def bulk_save(resources):
+    def bulk_save(resources, transaction_id=None):
         """
         Saves and indexes a list of resources
 
@@ -196,9 +202,11 @@ class Resource(models.ResourceInstance):
 
         start = time()
         for resource in resources:
-            resource.save_edit(edit_type="create")
+            resource.save_edit(edit_type="create", transaction_id=transaction_id)
 
-        resources[0].tiles[0].save_edit(note=f"Bulk created: {len(tiles)} for {len(resources)} resources.", edit_type="bulk_create")
+        resources[0].tiles[0].save_edit(
+            note=f"Bulk created: {len(tiles)} for {len(resources)} resources.", edit_type="bulk_create", transaction_id=transaction_id
+        )
 
         print("Time to save resource edits: %s" % datetime.timedelta(seconds=time() - start))
 
@@ -333,11 +341,15 @@ class Resource(models.ResourceInstance):
 
         return document, terms
 
-    def delete(self, user={}, note=""):
+    def delete(self, user={}, index=True, transaction_id=None):
         """
         Deletes a single resource and any related indexed data
 
         """
+
+        # note that deferring index will require:
+        # - that any resources related to the to-be-deleted resource get re-indexed
+        # - that the index for the to-be-deleted resource gets deleted
 
         permit_deletion = False
         graph = models.GraphModel.objects.get(graphid=self.graph_id)
@@ -357,53 +369,114 @@ class Resource(models.ResourceInstance):
             permit_deletion = True
 
         if permit_deletion is True:
-            related_resources = self.get_related_resources(lang="en-US", start=0, limit=1000, page=0)
-            for rr in related_resources["resource_relationships"]:
-                # delete any related resource entries, also reindex the resource that references this resource that's being deleted
-                try:
-                    resourceXresource = models.ResourceXResource.objects.get(pk=rr["resourcexid"])
-                    resource_to_reindex = (
-                        resourceXresource.resourceinstanceidfrom_id
-                        if resourceXresource.resourceinstanceidto_id == self.resourceinstanceid
-                        else resourceXresource.resourceinstanceidto_id
-                    )
-                    resourceXresource.delete(deletedResourceId=self.resourceinstanceid)
-                    res = Resource.objects.get(pk=resource_to_reindex)
-                    res.load_tiles()
-                    res.index()
-                except ObjectDoesNotExist:
-                    se.delete(index=RESOURCE_RELATIONS_INDEX, id=rr["resourcexid"])
+            for related_resource in models.ResourceXResource.objects.filter(
+                Q(resourceinstanceidfrom=self.resourceinstanceid) | Q(resourceinstanceidto=self.resourceinstanceid)
+            ):
+                related_resource.delete(deletedResourceId=self.resourceinstanceid, index=False)
 
-            query = Query(se)
-            bool_query = Bool()
-            bool_query.filter(Terms(field="resourceinstanceid", terms=[self.resourceinstanceid]))
-            query.add_query(bool_query)
-            results = query.search(index=TERMS_INDEX)["hits"]["hits"]
-            for result in results:
-                se.delete(index=TERMS_INDEX, id=result["_id"])
-            se.delete(index=RESOURCES_INDEX, id=self.resourceinstanceid)
+            if index:
+                self.delete_index()
 
             try:
-                self.save_edit(edit_type="delete", user=user, note=self.displayname)
+                self.save_edit(edit_type="delete", user=user, note=self.displayname, transaction_id=transaction_id)
             except:
                 pass
             super(Resource, self).delete()
 
         return permit_deletion
 
+    def delete_index(self, resourceinstanceid=None):
+        """
+        Deletes all references to a resource from all indexes
+
+        Keyword Arguments:
+        resourceinstanceid -- the resource instance id to delete from related indexes, if supplied will use this over self.resourceinstanceid
+        """
+
+        if resourceinstanceid is None:
+            resourceinstanceid = self.resourceinstanceid
+        resourceinstanceid = str(resourceinstanceid)
+
+        # delete any related terms
+        query = Query(se)
+        bool_query = Bool()
+        bool_query.filter(Terms(field="resourceinstanceid", terms=[resourceinstanceid]))
+        query.add_query(bool_query)
+        query.delete(index=TERMS_INDEX)
+
+        # delete any related resource index entries
+        query = Query(se)
+        bool_query = Bool()
+        bool_query.should(Terms(field="resourceinstanceidto", terms=[resourceinstanceid]))
+        bool_query.should(Terms(field="resourceinstanceidfrom", terms=[resourceinstanceid]))
+        query.add_query(bool_query)
+        query.delete(index=RESOURCE_RELATIONS_INDEX)
+
+        # reindex any related resources
+        query = Query(se)
+        bool_query = Bool()
+        bool_query.filter(Nested(path="ids", query=Terms(field="ids.id", terms=[resourceinstanceid])))
+        query.add_query(bool_query)
+        results = query.search(index=RESOURCES_INDEX)["hits"]["hits"]
+        for result in results:
+            try:
+                res = Resource.objects.get(pk=result["_id"])
+                res.load_tiles()
+                res.index()
+            except ObjectDoesNotExist:
+                pass
+
+        # delete resource index
+        se.delete(index=RESOURCES_INDEX, id=resourceinstanceid)
+
+        # delete resources from custom indexes
+        for index in settings.ELASTICSEARCH_CUSTOM_INDEXES:
+            es_index = import_class_from_string(index["module"])(index["name"])
+            es_index.delete_resources(resources=self)
+
+    def validate(self, verbose=False, strict=False):
+        """
+        Keyword Arguments:
+        verbose -- False(default) to only show the first error thrown in any tile, True to show all the errors in all the tiles
+        strict -- False(default), True to use a more complete check on the datatype
+            (eg: check for the existance of a referenced resoure on the resource-instance datatype)
+        """
+
+        from arches.app.models.tile import Tile, TileValidationError
+
+        errors = []
+        tiles = self.tiles
+        if len(self.tiles) == 0:
+            tiles = Tile.objects.filter(resourceinstance=self)
+
+        for tile in tiles:
+            try:
+                tile.validate(raise_early=(not verbose), strict=strict)
+            except TileValidationError as err:
+                errors += err.message if isinstance(err.message, list) else [err.message]
+        return errors
+
     def get_related_resources(
-        self, lang="en-US", limit=settings.RELATED_RESOURCES_EXPORT_LIMIT, start=0, page=0, user=None, resourceinstance_graphid=None,
+        self,
+        lang="en-US",
+        limit=settings.RELATED_RESOURCES_EXPORT_LIMIT,
+        start=0,
+        page=0,
+        user=None,
+        resourceinstance_graphid=None,
+        graphs=None,
     ):
         """
         Returns an object that lists the related resources, the relationship types, and a reference to the current resource
 
         """
-        graphs = (
-            models.GraphModel.objects.all()
-            .exclude(pk=settings.SYSTEM_SETTINGS_RESOURCE_MODEL_ID)
-            .exclude(isresource=False)
-            .exclude(isactive=False)
-        )
+        if not graphs:
+            graphs = list(
+                models.GraphModel.objects.all()
+                .exclude(pk=settings.SYSTEM_SETTINGS_RESOURCE_MODEL_ID)
+                .exclude(isresource=False)
+                .exclude(isactive=False)
+            )
 
         graph_lookup = {
             str(graph.graphid): {"name": graph.name, "iconclass": graph.iconclass, "fillColor": graph.color} for graph in graphs
@@ -422,10 +495,17 @@ class Resource(models.ResourceInstance):
             bool_filter.should(Terms(field="resourceinstanceidto", terms=resourceinstanceid))
 
             if resourceinstance_graphid:
-                graph_id_filter = Bool()
-                graph_id_filter.should(Terms(field="resourceinstancefrom_graphid", terms=resourceinstance_graphid))
-                graph_id_filter.should(Terms(field="resourceinstanceto_graphid", terms=resourceinstance_graphid))
-                bool_filter.must(graph_id_filter)
+                graph_filter = Bool()
+                to_graph_id_filter = Bool()
+                to_graph_id_filter.filter(Terms(field="resourceinstancefrom_graphid", terms=str(self.graph_id)))
+                to_graph_id_filter.filter(Terms(field="resourceinstanceto_graphid", terms=resourceinstance_graphid))
+                graph_filter.should(to_graph_id_filter)
+
+                from_graph_id_filter = Bool()
+                from_graph_id_filter.filter(Terms(field="resourceinstancefrom_graphid", terms=resourceinstance_graphid))
+                from_graph_id_filter.filter(Terms(field="resourceinstanceto_graphid", terms=str(self.graph_id)))
+                graph_filter.should(from_graph_id_filter)
+                bool_filter.must(graph_filter)
 
             query.add_query(bool_filter)
 
@@ -434,6 +514,8 @@ class Resource(models.ResourceInstance):
         resource_relations = get_relations(
             resourceinstanceid=self.resourceinstanceid, start=start, limit=limit, resourceinstance_graphid=resourceinstance_graphid,
         )
+
+        
 
         ret["total"] = resource_relations["hits"]["total"]
         instanceids = set()
@@ -522,7 +604,7 @@ class Resource(models.ResourceInstance):
 
         return JSONSerializer().serializeToPython(ret)
 
-    def to_json(self, compact=True, hide_empty_nodes=False):
+    def to_json(self, compact=True, hide_empty_nodes=False, user=None, perm=None, version=None):
         """
         Returns resource represented as disambiguated JSON graph
 
@@ -530,11 +612,26 @@ class Resource(models.ResourceInstance):
         compact -- type bool: hide superfluous node data
         hide_empty_nodes -- type bool: hide nodes without data
         """
-        label_based_graph = LabelBasedGraph.from_resource(resource=self, compact=compact, hide_empty_nodes=hide_empty_nodes)
+        if version is None:
+            return LabelBasedGraph.from_resource(resource=self, compact=compact, hide_empty_nodes=hide_empty_nodes, user=user, perm=perm)
+        elif version == "beta":
+            return LabelBasedGraphV2.from_resource(resource=self, compact=compact, hide_empty_nodes=hide_empty_nodes, user=user, perm=perm)
 
-        _name, resource_graph = label_based_graph.popitem()
+    @staticmethod
+    def to_json__bulk(resources, compact=True, hide_empty_nodes=False, version=None):
+        """
+        Returns list of resources represented as disambiguated JSON graphs
 
-        return resource_graph
+        Keyword Arguments:
+        resources -- list of Resource
+        compact -- type bool: hide superfluous node data
+        hide_empty_nodes -- type bool: hide nodes without data
+        """
+
+        if version is None:
+            return LabelBasedGraph.from_resources(resources=resources, compact=compact, hide_empty_nodes=hide_empty_nodes)
+        elif version == "beta":
+            return LabelBasedGraphV2.from_resources(resources=resources, compact=compact, hide_empty_nodes=hide_empty_nodes)
 
     def get_node_values(self, node_name):
         """

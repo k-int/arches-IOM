@@ -246,6 +246,7 @@ define([
                             this.searchByExtent();
                         } else {
                             this.draw.changeMode(selectedDrawTool);
+                            self.map().draw_mode = selectedDrawTool;
                         }
                     }
                 }, this);
@@ -261,15 +262,18 @@ define([
                     var agg = ko.unwrap(self.searchAggregations);
                     var features = [];
                     var mouseoverInstanceId = self.mouseoverInstanceId();
-                    _.each(agg.results, function(result) {
-                        _.each(result._source.points, function(point) {
-                            var feature = turf.point([point.point.lon, point.point.lat], _.extend(result._source, {
-                                resourceinstanceid: result._id,
-                                highlight: result._id === mouseoverInstanceId
-                            }));
-                            features.push(feature);
+                    
+                    if (agg) {
+                        _.each(agg.results, function(result) {
+                            _.each(result._source.points, function(point) {
+                                var feature = turf.point([point.point.lon, point.point.lat], _.extend(result._source, {
+                                    resourceinstanceid: result._id,
+                                    highlight: result._id === mouseoverInstanceId
+                                }));
+                                features.push(feature);
+                            });
                         });
-                    });
+                    }
 
                     var pointsFC = turf.featureCollection(features);
                     pointSource.setData(pointsFC);
@@ -373,6 +377,9 @@ define([
                 this.map().on('draw.update', function(e) {
                     self.searchGeometries(e.features);
                     self.updateFilter();
+                });
+                this.map().on("draw.modechange", function (e) {
+                    self.map().draw_mode = e.mode;
                 });
             },
 

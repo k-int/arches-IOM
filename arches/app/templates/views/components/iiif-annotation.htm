@@ -2,14 +2,16 @@
 {% load i18n %}
 
 {% block tabs %}
+<!-- ko if: !$data.hideEditorTab() -->
 <div class="workbench-card-sidebar-tab" data-bind="click: function() {
     toggleTab('editor');
 }, css: {
-    'active': activeTab() === 'editor'
+    'active': activeTab() === 'editor', 'disabled': !canvas() || expandGallery()
 }">
     <i class="fa fa-pencil"></i>
     <span class="map-sidebar-text">{% trans "Edit" %}</span>
 </div>
+<!-- /ko -->
 {{ block.super }}
 {% endblock tabs %}
 

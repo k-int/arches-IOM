@@ -161,7 +161,7 @@ define([
                     var dataEmpty = _.keys(koMapping.toJS(tile.data)).length === 0;
                     if (ko.unwrap(tile.provisionaledits) !== null && dataEmpty) {
                         return 2;
-                    } else if (tile.provisionaledits() !== null && !dataEmpty) {
+                    } else if (ko.unwrap(tile.provisionaledits) !== null && !dataEmpty) {
                         return 1;
                     } else {
                         return 0;
@@ -273,7 +273,7 @@ define([
                     }
                 },
                 owner: this
-            }),
+            }).extend({ throttle: 1 }),
             showForm: ko.observable(false),
             showSummary: ko.pureComputed(function(){
                 return self.canAdd() && self.showForm() === false && self.selected();
@@ -322,8 +322,33 @@ define([
                     }
                 });
             },
-            getNewTile: function() {
-                if (!this.newTile) this.newTile = new TileViewModel({
+
+            // used to generate parent tile for nexted data
+            saveParentTile: async(optionalParentTile) => {
+                return new Promise((resolve, reject) => {
+                    if(optionalParentTile && !optionalParentTile.tileid) {
+                        optionalParentTile.save((err) => {
+                            reject(err);
+                        }, () => {
+                            resolve(true);
+                        });
+                    } else if (optionalParentTile && optionalParentTile.tileid) {
+                        // parent tile already exists
+                        resolve(false);
+                        return;
+                    } else {
+                        const tile = self.getNewTile();
+                        tile.save((err) => {
+                            reject(err);
+                        }, () => {
+                            resolve(true);
+                        });
+                    }
+                });
+            },
+
+            getNewTile: function(forceNewTile) {
+                if (!this.newTile || forceNewTile) this.newTile = new TileViewModel({
                     tile: {
                         tileid: '',
                         resourceinstance_id: ko.unwrap(params.resourceId),
@@ -398,15 +423,17 @@ define([
 
         this.isDirty = function(){
             // Returns true if a tile is dirty and dirty state is not triggered by default values.
-            if(self.newTile) {
-                if(self.newTile.dirty()) {
+            var tile = self.newTile;
+
+            if(tile) {
+                if(tile.dirty()) {
                     var res = {};
                     self.widgets().forEach(function(w){
                         res[w.node.nodeid] = ko.unwrap(w.config.defaultValue);
                     });
-                    for (var k in self.newTile.data) {
+                    for (var k in tile.data) {
                         if (Object.keys(res).indexOf(k) > -1) {
-                            if ((res[k]||null) == (self.newTile.data[k]()||null) !== true) {
+                            if ((res[k]||null) == (tile.data[k]()||null) !== true) {
                                 return true;
                             } else {
                                 return false;
@@ -415,6 +442,7 @@ define([
                     }
                 }
             }
+
             return false;
         };
 

@@ -11,6 +11,7 @@ from django.db import connection
 from django.http import HttpRequest
 from django.utils.translation import ugettext as _
 from arches.app.models import models
+from tempfile import NamedTemporaryFile
 
 
 @shared_task
@@ -40,6 +41,7 @@ def message(arg):
 @shared_task(bind=True)
 def sync(self, surveyid=None, userid=None, synclogid=None):
     from arches.app.models.mobile_survey import MobileSurvey
+
     create_user_task_record(self.request.id, self.name, userid)
     survey = MobileSurvey.objects.get(id=surveyid)
     survey._sync(synclogid, userid)
@@ -48,7 +50,7 @@ def sync(self, surveyid=None, userid=None, synclogid=None):
 
 
 @shared_task(bind=True)
-def export_search_results(self, userid, request_values, format):
+def export_search_results(self, userid, request_values, format, report_link):
     from arches.app.search.search_export import SearchResultsExporter
     from arches.app.models.system_settings import settings
 
@@ -64,9 +66,22 @@ def export_search_results(self, userid, request_values, format):
     for k, v in request_values.items():
         new_request.GET.__setitem__(k, v[0])
     new_request.path = request_values["path"]
-    exporter = SearchResultsExporter(search_request=new_request)
-    files, export_info = exporter.export(format)
-    exportid = exporter.write_export_zipfile(files, export_info)
+    if format == "tilexl":
+        exporter = SearchResultsExporter(search_request=new_request)
+        export_files, export_info = exporter.export(format, report_link)
+        wb = export_files[0]["outputfile"]
+        with NamedTemporaryFile() as tmp:
+            wb.save(tmp.name)
+            tmp.seek(0)
+            stream = tmp.read()
+            export_files[0]["outputfile"] = tmp
+            exportid = exporter.write_export_zipfile(export_files, export_info)
+    else:
+        exporter = SearchResultsExporter(search_request=new_request)
+        files, export_info = exporter.export(format, report_link)
+        exportid = exporter.write_export_zipfile(files, export_info)
+
+    search_history_obj = models.SearchExportHistory.objects.get(pk=exportid)
 
     return {
         "taskid": self.request.id,
@@ -81,15 +96,16 @@ def export_search_results(self, userid, request_values, format):
             closing=_("Thank you"),
             email=email,
             name=export_name,
+            email_link=str(settings.ARCHES_NAMESPACE_FOR_DATA_EXPORT).rstrip("/") + "/files/" + str(search_history_obj.downloadfile),
         ),
     }
 
 
 @shared_task(bind=True)
-def refresh_materialized_view(self):
+def refresh_geojson_geometries(self):
     with connection.cursor() as cursor:
         sql = """
-            REFRESH MATERIALIZED VIEW mv_geojson_geoms;
+            SELECT * FROM refresh_geojson_geometries();
         """
         cursor.execute(sql)
     response = {"taskid": self.request.id}
@@ -100,7 +116,12 @@ def import_business_data(
     self, data_source="", overwrite="", bulk_load=False, create_concepts=False, create_collections=False, prevent_indexing=False
 ):
     management.call_command(
-        "packages", operation="import_business_data", source=data_source, overwrite=True, prevent_indexing=prevent_indexing
+        "packages",
+        operation="import_business_data",
+        source=data_source,
+        bulk_load=bulk_load,
+        overwrite=overwrite,
+        prevent_indexing=prevent_indexing,
     )
 
 

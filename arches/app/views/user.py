@@ -35,6 +35,10 @@ from arches.app.views.base import BaseManagerView
 from arches.app.utils.forms import ArchesUserProfileForm
 from arches.app.utils.response import JSONResponse
 from arches.app.utils.permission_backend import user_is_resource_reviewer
+import logging
+
+
+logger = logging.getLogger(__name__)
 
 
 class UserManagerView(BaseManagerView):
@@ -107,7 +111,9 @@ class UserManagerView(BaseManagerView):
     def get(self, request):
 
         if self.request.user.is_authenticated and self.request.user.username != "anonymous":
-            context = self.get_context_data(main_script="views/user-profile-manager", )
+            context = self.get_context_data(
+                main_script="views/user-profile-manager",
+            )
 
             user_details = self.get_user_details(request.user)
 
@@ -139,7 +145,9 @@ class UserManagerView(BaseManagerView):
 
             user_details = self.get_user_details(request.user)
 
-            context = self.get_context_data(main_script="views/user-profile-manager", )
+            context = self.get_context_data(
+                main_script="views/user-profile-manager",
+            )
             context["errors"] = []
             context["nav"]["icon"] = "fa fa-user"
             context["nav"]["title"] = _("Profile Manager")
@@ -164,14 +172,15 @@ class UserManagerView(BaseManagerView):
             if form.is_valid():
                 user = form.save()
                 try:
-                    admin_info = settings.ADMINS[0][1] if settings.ADMINS else ""
-                    message = _(
-                        "Your arches profile was just changed.  If this was unexpected, please contact your Arches administrator at %s."
-                        % (admin_info)
+                    admin_info = settings.ADMINS[0][1] if settings.ADMINS else None
+                    message = (
+                        f"Your {settings.APP_NAME} profile was just changed.  If this was unexpected, please contact your "
+                        f"{settings.APP_NAME} administrator{f' at {admin_info}.' if (admin_info and not str.isspace(admin_info)) else '.'}"
                     )
-                    user.email_user(_("You're Arches Profile Has Changed"), message)
-                except Exception as e:
-                    print(e)
+                    message = _(message)
+                    user.email_user(_("Your " + settings.APP_NAME + " Profile Has Changed"), message)
+                except:
+                    logger.error("Error sending email", exc_info=True)
                 request.user = user
             context["form"] = form
 
