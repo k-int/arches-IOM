@@ -21,7 +21,7 @@ from django.contrib.auth import views as auth_views
 from django.conf.urls import include, url
 from django.contrib.staticfiles.urls import staticfiles_urlpatterns
 from arches.app.views import concept, main, map, search, graph, api, ciim
-from arches.app.views.admin import ReIndexResources
+from arches.app.views.admin import ReIndexResources, FileView
 from arches.app.views.graph import (
     GraphDesignerView,
     GraphSettingsView,
