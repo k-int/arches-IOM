@@ -28,7 +28,7 @@ from django.contrib.auth.models import User, Group, Permission
 from django.core.exceptions import ObjectDoesNotExist
 from django.utils.translation import ugettext as _
 from arches.app.models import models
-from arches.app.models.models import EditLog
+from arches.app.models.models import EditLog, LatestResourceEdit
 from arches.app.models.models import TileModel
 from arches.app.models.concept import get_preflabel_from_valueid
 from arches.app.models.system_settings import settings
@@ -105,6 +105,14 @@ class Resource(models.ResourceInstance):
             edit.transactionid = transaction_id
         edit.edittype = edit_type
         edit.save()
+
+        if LatestResourceEdit.objects.filter(resourceinstanceid=self.resourceinstanceid).exists():
+            LatestResourceEdit.objects.get(resourceinstanceid=self.resourceinstanceid).delete()
+        latest_edit = LatestResourceEdit()
+        latest_edit.resourceinstanceid = self.resourceinstanceid
+        latest_edit.timestamp = timestamp
+        latest_edit.edittype = edit_type
+        latest_edit.save()
 
     def save(self, *args, **kwargs):
         """

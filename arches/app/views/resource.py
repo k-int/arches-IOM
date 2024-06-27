@@ -78,7 +78,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-@method_decorator(can_edit_resource_instance, name='dispatch')
+#@method_decorator(can_edit_resource_instance, name='dispatch')
 class ResourceArtefactSearchView(BaseManagerView):
 
     def get(self, request, graphid=None, resourceid=None):
@@ -95,7 +95,7 @@ class ResourceArtefactSearchView(BaseManagerView):
 
 
 
-@method_decorator(can_edit_resource_instance, name='dispatch')
+#@method_decorator(can_edit_resource_instance, name='dispatch')
 class ResourceArtefactView(BaseManagerView):
 
     def get(self, request, graphid=None, resourceid=None, basetype=None):
