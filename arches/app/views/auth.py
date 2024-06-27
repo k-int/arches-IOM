@@ -37,6 +37,7 @@ from django.contrib.auth.models import User, Group
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import render, redirect
 import django.contrib.auth.password_validation as validation
+from django_ratelimit.decorators import ratelimit
 from arches import __version__
 from arches.app.utils.response import JSONResponse, Http401Response
 from arches.app.utils.forms import ArchesUserCreationForm, ArchesPasswordResetForm, ArchesSetPasswordForm
@@ -45,6 +46,7 @@ from arches.app.models.system_settings import settings
 from arches.app.utils.arches_crypto import AESCipher
 from arches.app.utils.betterJSONSerializer import JSONSerializer, JSONDeserializer
 from arches.app.utils.permission_backend import user_is_resource_reviewer
+from django.core.exceptions import ValidationError
 import logging
 
 logger = logging.getLogger(__name__)
@@ -53,21 +55,40 @@ logger = logging.getLogger(__name__)
 class LoginView(View):
     def get(self, request):
         next = request.GET.get("next", reverse("home"))
+        registration_success = request.GET.get("registration_success")
 
         if request.GET.get("logout", None) is not None:
             logout(request)
             # need to redirect to 'auth' so that the user is set to anonymous via the middleware
             return redirect("auth")
         else:
-            return render(request, "login.htm", {"auth_failed": False, "next": next})
+            return render(
+                request,
+                "login.htm",
+                {
+                    "auth_failed": False,
+                    "next": next,
+                    "registration_success": registration_success,
+                    "user_signup_enabled": settings.ENABLE_USER_SIGNUP,
+                },
+            )
 
+    @method_decorator(ratelimit(key="post:username", rate=settings.RATE_LIMIT, block=False))
     def post(self, request):
         # POST request is taken to mean user is logging in
-        auth_attempt_success = None
+        next = request.POST.get("next", reverse("home"))
+
+        if getattr(request, "limited", False):
+            return render(
+                request,
+                "login.htm",
+                {"auth_failed": True, "rate_limited": True, "next": next, "user_signup_enabled": settings.ENABLE_USER_SIGNUP},
+                status=429,
+            )
+
         username = request.POST.get("username", None)
         password = request.POST.get("password", None)
         user = authenticate(username=username, password=password)
-        next = request.POST.get("next", reverse("home"))
 
         if user is not None and user.is_active:
             login(request, user)
@@ -75,7 +96,9 @@ class LoginView(View):
             auth_attempt_success = True
             return redirect(next)
 
-        return render(request, "login.htm", {"auth_failed": True, "next": next}, status=401)
+        return render(
+            request, "login.htm", {"auth_failed": True, "next": next, "user_signup_enabled": settings.ENABLE_USER_SIGNUP}, status=401
+        )
 
 
 @method_decorator(never_cache, name="dispatch")
@@ -85,6 +108,9 @@ class SignupView(View):
         postdata = {"first_name": "", "last_name": "", "email": ""}
         showform = True
         confirmation_message = ""
+
+        if not settings.ENABLE_USER_SIGNUP:
+            raise (Exception(_("User signup has been disabled. Please contact your administrator.")))
 
         return render(
             request,
@@ -106,16 +132,23 @@ class SignupView(View):
         postdata["ts"] = int(time.time())
         form = ArchesUserCreationForm(postdata, enable_captcha=settings.ENABLE_CAPTCHA)
 
+        if not settings.ENABLE_USER_SIGNUP:
+            raise (Exception(_("User signup has been disabled. Please contact your administrator.")))
+
         if form.is_valid():
             AES = AESCipher(settings.SECRET_KEY)
             userinfo = JSONSerializer().serialize(form.cleaned_data)
             encrypted_userinfo = AES.encrypt(userinfo)
             url_encrypted_userinfo = urlencode({"link": encrypted_userinfo})
+            confirmation_link = request.build_absolute_uri(reverse("confirm_signup") + "?" + url_encrypted_userinfo)
+
+            if not settings.FORCE_USER_SIGNUP_EMAIL_AUTHENTICATION:  # bypasses email confirmation if setting is disabled
+                return redirect(confirmation_link)
 
             admin_email = settings.ADMINS[0][1] if settings.ADMINS else ""
             email_context = {
                 "button_text": _("Signup for Arches"),
-                "link": request.build_absolute_uri(reverse("confirm_signup") + "?" + url_encrypted_userinfo),
+                "link": confirmation_link,
                 "greeting": _(
                     "Thanks for your interest in Arches. Click on link below \
                     to confirm your email address! Use your email address to login."
@@ -156,6 +189,9 @@ class SignupView(View):
 @method_decorator(never_cache, name="dispatch")
 class ConfirmSignupView(View):
     def get(self, request):
+        if not settings.ENABLE_USER_SIGNUP:
+            raise (Exception(_("User signup has been disabled. Please contact your administrator.")))
+
         link = request.GET.get("link", None)
         AES = AESCipher(settings.SECRET_KEY)
         userinfo = JSONDeserializer().deserialize(AES.decrypt(link))
@@ -165,7 +201,7 @@ class ConfirmSignupView(View):
                 user = form.save()
                 crowdsource_editor_group = Group.objects.get(name=settings.USER_SIGNUP_GROUP)
                 user.groups.add(crowdsource_editor_group)
-                return redirect("auth")
+                return redirect(reverse("auth") + "?registration_success=true")
             else:
                 try:
                     for error in form.errors.as_data()["username"]:
@@ -189,8 +225,13 @@ class ChangePasswordView(View):
         messages = {"invalid_password": None, "password_validations": None, "success": None, "other": None, "mismatched": None}
         return JSONResponse(messages)
 
+    @method_decorator(ratelimit(key="user", rate=settings.RATE_LIMIT, block=False))
     def post(self, request):
         messages = {"invalid_password": None, "password_validations": None, "success": None, "other": None, "mismatched": None}
+
+        if getattr(request, "limited", False):
+            messages["invalid_password"] = _("Too many requests")
+            return JSONResponse(messages)
         try:
             user = request.user
             old_password = request.POST.get("old_password")
@@ -228,6 +269,7 @@ class PasswordResetConfirmView(auth_views.PasswordResetConfirmView):
 
 @method_decorator(csrf_exempt, name="dispatch")
 class UserProfileView(View):
+    @method_decorator(ratelimit(key="post:username", rate=settings.RATE_LIMIT))
     def post(self, request):
         username = request.POST.get("username", None)
         password = request.POST.get("password", None)
@@ -250,6 +292,7 @@ class UserProfileView(View):
 
 @method_decorator(csrf_exempt, name="dispatch")
 class GetClientIdView(View):
+    @method_decorator(ratelimit(key="post:username", rate=settings.RATE_LIMIT))
     def post(self, request):
         if settings.MOBILE_OAUTH_CLIENT_ID == "":
             message = _("Make sure to set your MOBILE_OAUTH_CLIENT_ID in settings.py")
@@ -268,6 +311,7 @@ class GetClientIdView(View):
 
 @method_decorator(csrf_exempt, name="dispatch")
 class ServerSettingView(View):
+    @method_decorator(ratelimit(key="post:username", rate=settings.RATE_LIMIT))
     def post(self, request):
         if settings.MOBILE_OAUTH_CLIENT_ID == "":
             message = _("Make sure to set your MOBILE_OAUTH_CLIENT_ID in settings.py")

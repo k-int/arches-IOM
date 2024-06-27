@@ -17,13 +17,14 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
 
 import uuid
-from django.db import transaction
+from django.db import transaction, connection
 from django.db.models import Q
 from django.http import HttpResponse, HttpResponseNotFound, HttpResponseNotAllowed, HttpResponseServerError
 from django.shortcuts import render
 from django.utils.decorators import method_decorator
 from django.utils.module_loading import import_string
 from django.utils.translation import ugettext as _
+from django.utils.translation import get_language
 from arches.app.models import models
 from arches.app.models.system_settings import settings
 from arches.app.models.concept import Concept, ConceptValue, CORE_CONCEPTS, get_preflabel_from_valueid
@@ -378,8 +379,7 @@ def dropdown(request):
 
 def paged_dropdown(request):
     conceptid = request.GET.get("conceptid")
-    query = request.GET.get("query", None)
-    query = None if query == "" else query
+    query = request.GET.get("query", "")
     page = int(request.GET.get("page", 1))
     limit = 50
     offset = (page - 1) * limit
@@ -391,6 +391,7 @@ def paged_dropdown(request):
         dict(list(zip(["id", "text", "conceptid", "language", "type"], d["valueto"].values())), depth=d["depth"], collector=d["collector"])
         for d in data
     ]
+
     return JSONResponse({"results": data, "more": offset + limit < total_count})
 
 

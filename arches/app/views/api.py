@@ -1,4 +1,3 @@
-from base64 import b64decode
 import importlib
 import json
 import logging
@@ -7,8 +6,9 @@ import re
 import sys
 import uuid
 import traceback
-from io import StringIO
 from oauth2_provider.views import ProtectedResourceView
+from base64 import b64decode
+from http import HTTPStatus
 from pyld.jsonld import compact, frame, from_rdf
 from rdflib import RDF
 from rdflib.namespace import SKOS, DCTERMS
@@ -30,6 +30,7 @@ from django.utils.translation import ugettext as _
 from django.core.files.base import ContentFile
 from django.views.decorators.csrf import csrf_exempt
 from django.utils.decorators import method_decorator
+from django_ratelimit.decorators import ratelimit
 from arches.app.models import models
 from arches.app.models.concept import Concept
 from arches.app.models.card import Card as CardProxyModel
@@ -41,7 +42,7 @@ from arches.app.models.tile import Tile as TileProxyModel, TileValidationError
 from arches.app.views.tile import TileData as TileView
 from arches.app.views.resource import RelatedResourcesView, get_resource_relationship_types
 from arches.app.utils.skos import SKOSWriter
-from arches.app.utils.response import JSONResponse
+from arches.app.utils.response import JSONResponse, JSONErrorResponse
 from arches.app.utils.decorators import can_read_concept, group_required
 from arches.app.utils.betterJSONSerializer import JSONSerializer, JSONDeserializer
 from arches.app.utils.data_management.resources.exporter import ResourceExporter
@@ -59,7 +60,7 @@ from arches.app.utils.permission_backend import (
 )
 from arches.app.utils.geo_utils import GeoUtils
 from arches.app.search.components.base import SearchFilterFactory
-from arches.app.datatypes.datatypes import DataTypeFactory
+from arches.app.datatypes.datatypes import DataTypeFactory, EDTFDataType
 from arches.app.search.search_engine_factory import SearchEngineFactory
 from arches.app.search.search_export import SearchResultsExporter
 
@@ -263,11 +264,12 @@ class GeoJSON(APIBase):
     se = SearchEngineFactory().create()
 
     def get_name(self, resource):
-        module = importlib.import_module("arches.app.functions.primary_descriptors")
-        PrimaryDescriptorsFunction = getattr(module, "PrimaryDescriptorsFunction")()
-        functionConfig = models.FunctionXGraph.objects.filter(graph_id=resource.graph_id, function__functiontype="primarydescriptors")
-        if len(functionConfig) == 1:
-            return PrimaryDescriptorsFunction.get_primary_descriptor_from_nodes(resource, functionConfig[0].config["name"])
+        graph_function = models.FunctionXGraph.objects.filter(
+            graph_id=resource.graph_id, function__functiontype="primarydescriptors"
+        ).select_related("function")
+        if len(graph_function) == 1:
+            module = graph_function[0].function.get_class_module()()
+            return module.get_primary_descriptor_from_nodes(self, graph_function[0].config["descriptor_types"]["name"])
         else:
             return _("Unnamed Resource")
 
@@ -487,6 +489,7 @@ class MVT(APIBase):
 
 @method_decorator(csrf_exempt, name="dispatch")
 class Graphs(APIBase):
+    action = None
     def get(self, request, graph_id=None):
         cards_querystring = request.GET.get("cards", None)
         exclusions_querystring = request.GET.get("exclude", None)
@@ -501,32 +504,33 @@ class Graphs(APIBase):
             exclusions = []
 
         perm = "read_nodegroup"
-        graph = cache.get(f"graph_{graph_id}")
         user = request.user
-
-        if graph is None:
+        if graph_id and not self.action:
             graph = Graph.objects.get(graphid=graph_id)
-        graph = JSONSerializer().serializeToPython(graph, sort_keys=False, exclude=["is_editable", "functions"] + exclusions)
+            graph = JSONSerializer().serializeToPython(graph, sort_keys=False, exclude=["is_editable", "functions"] + exclusions)
 
-        if get_cards:
-            datatypes = models.DDataType.objects.all()
-            cards = CardProxyModel.objects.filter(graph_id=graph_id).order_by("sortorder")
-            permitted_cards = []
-            for card in cards:
-                if user.has_perm(perm, card.nodegroup):
-                    card.filter_by_perm(user, perm)
-                    permitted_cards.append(card)
-            cardwidgets = [
-                widget
-                for widgets in [card.cardxnodexwidget_set.order_by("sortorder").all() for card in permitted_cards]
-                for widget in widgets
-            ]
+            if get_cards:
+                datatypes = models.DDataType.objects.all()
+                cards = CardProxyModel.objects.filter(graph_id=graph_id).order_by("sortorder")
+                permitted_cards = []
+                for card in cards:
+                    if user.has_perm(perm, card.nodegroup):
+                        card.filter_by_perm(user, perm)
+                        permitted_cards.append(card)
+                cardwidgets = [
+                    widget
+                    for widgets in [card.cardxnodexwidget_set.order_by("sortorder").all() for card in permitted_cards]
+                    for widget in widgets
+                ]
 
-            permitted_cards = JSONSerializer().serializeToPython(permitted_cards, sort_keys=False, exclude=["is_editable"])
+                permitted_cards = JSONSerializer().serializeToPython(permitted_cards, sort_keys=False, exclude=["is_editable"])
 
-            return JSONResponse({"datatypes": datatypes, "cards": permitted_cards, "graph": graph, "cardwidgets": cardwidgets})
-        else:
-            return JSONResponse({"graph": graph})
+                return JSONResponse({"datatypes": datatypes, "cards": permitted_cards, "graph": graph, "cardwidgets": cardwidgets})
+            else:
+                return JSONResponse({"graph": graph})
+        elif self.action == "get_graph_models":
+            graphs = models.GraphModel.objects.all()
+            return JSONResponse(JSONSerializer().serializeToPython(graphs))
 
 
 @method_decorator(csrf_exempt, name="dispatch")
@@ -566,6 +570,7 @@ class Resources(APIBase):
 
         allowed_formats = ["json", "json-ld", "arches-json"]
         format = request.GET.get("format", "json-ld")
+        hide_hidden_nodes = bool(request.GET.get("hidden", "true").lower() == "false")
         user = request.user
         perm = "read_nodegroup"
 
@@ -587,17 +592,29 @@ class Resources(APIBase):
                 hide_empty_nodes = bool(request.GET.get("hide_empty_nodes", "false").lower() == "true")  # default False
 
                 if version == "beta":
-                    out = resource.to_json(compact=compact, hide_empty_nodes=hide_empty_nodes, user=user, perm=perm, version=version)
+                    out = resource.to_json(
+                        compact=compact,
+                        hide_empty_nodes=hide_empty_nodes,
+                        user=user,
+                        perm=perm,
+                        version=version,
+                        hide_hidden_nodes=hide_hidden_nodes,
+                    )
                 else:
                     out = {
                         "resource": resource.to_json(
-                            compact=compact, hide_empty_nodes=hide_empty_nodes, user=user, perm=perm, version=version
+                            compact=compact,
+                            hide_empty_nodes=hide_empty_nodes,
+                            user=user,
+                            perm=perm,
+                            version=version,
+                            hide_hidden_nodes=hide_hidden_nodes,
                         ),
-                        "displaydescription": resource.displaydescription,
-                        "displayname": resource.displayname,
+                        "displaydescription": resource.displaydescription(),
+                        "displayname": resource.displayname(),
                         "graph_id": resource.graph_id,
                         "legacyid": resource.legacyid,
-                        "map_popup": resource.map_popup,
+                        "map_popup": resource.map_popup(),
                         "resourceinstanceid": resource.resourceinstanceid,
                     }
 
@@ -981,7 +998,7 @@ class Card(APIBase):
             tiles = []
             displayname = _("New Resource")
         else:
-            displayname = resource_instance.displayname
+            displayname = resource_instance.displayname()
             if displayname == "undefined":
                 displayname = _("Unnamed Resource")
             if str(resource_instance.graph_id) == settings.SYSTEM_SETTINGS_RESOURCE_MODEL_ID:
@@ -1038,18 +1055,21 @@ class Card(APIBase):
 
 
 class SearchExport(View):
+    @method_decorator(ratelimit(key="header:http-authorization", rate=settings.RATE_LIMIT, block=False))
     def get(self, request):
         total = int(request.GET.get("total", 0))
         download_limit = settings.SEARCH_EXPORT_IMMEDIATE_DOWNLOAD_THRESHOLD
         format = request.GET.get("format", "tilecsv")
         report_link = request.GET.get("reportlink", False)
-        if "HTTP_AUTHORIZATION" in request.META:
+        if "HTTP_AUTHORIZATION" in request.META and not request.GET.get("limited", False):
             request_auth = request.META.get("HTTP_AUTHORIZATION").split()
             if request_auth[0].lower() == "basic":
                 user_cred = b64decode(request_auth[1]).decode().split(":")
                 user = authenticate(username=user_cred[0], password=user_cred[1])
                 if user is not None:
                     request.user = user
+                else:
+                    return JSONErrorResponse(status=HTTPStatus.UNAUTHORIZED)
         exporter = SearchResultsExporter(search_request=request)
         export_files, export_info = exporter.export(format, report_link)
         if format == "geojson" and total <= download_limit:
@@ -1219,11 +1239,11 @@ class ResourceReport(APIBase):
         template = models.ReportTemplate.objects.get(pk=graph.template_id)
 
         if not template.preload_resource_data:
-            return JSONResponse({"template": template, "report_json": resource.to_json(compact=compact, version=version)})
+            return JSONResponse({"template": template, "report_json": resource.to_json(compact=compact, version=version, user=request.user, perm=perm)})
 
         resp = {
             "datatypes": models.DDataType.objects.all(),
-            "displayname": resource.displayname,
+            "displayname": resource.displayname(),
             "resourceid": resourceid,
             "graph": graph,
             "hide_empty_nodes": settings.HIDE_EMPTY_NODES_IN_REPORT,
@@ -1422,13 +1442,17 @@ class BulkResourceReport(APIBase):
 class BulkDisambiguatedResourceInstance(APIBase):
     def get(self, request):
         resource_ids = request.GET.get("resource_ids").split(",")
-        uncompacted_value = request.GET.get("uncompacted")
         version = request.GET.get("v")
-        compact = True
-        if uncompacted_value == "true":
-            compact = False
+        hide_hidden_nodes = bool(request.GET.get("hidden", "true").lower() == "false")
+        compact = bool(request.GET.get("uncompacted", "false").lower() == "false")
+        user = request.user
+        perm = "read_nodegroup"
+
         return JSONResponse(
-            {resource.pk: resource.to_json(compact=compact, version=version) for resource in Resource.objects.filter(pk__in=resource_ids)}
+            {
+                resource.pk: resource.to_json(compact=compact, version=version, hide_hidden_nodes=hide_hidden_nodes, user=user, perm=perm)
+                for resource in Resource.objects.filter(pk__in=resource_ids)
+            }
         )
 
 
@@ -1455,6 +1479,31 @@ class Tile(APIBase):
             request.POST = request.POST.copy()
             request.POST["data"] = request.body
         return tileview.post(request)
+
+
+@method_decorator(csrf_exempt, name="dispatch")
+class NodeGroup(APIBase):
+    def get(self, request, nodegroupid=None):
+        params = request.GET.dict()
+        user = request.user
+        perms = "models." + params.pop("perms", "read_nodegroup")
+        params["nodegroupid"] = params.get("nodegroupid", nodegroupid)
+
+        try:
+            uuid.UUID(params["nodegroupid"])
+        except ValueError as e:
+            del params["nodegroupid"]
+
+        try:
+            nodegroup = models.NodeGroup.objects.get(pk=params["nodegroupid"])
+            permitted_nodegroups = [nodegroup.pk for nodegroup in get_nodegroups_by_perm(user, perms)]
+        except Exception as e:
+            return JSONResponse(str(e), status=404)
+
+        if not nodegroup or nodegroup.pk not in permitted_nodegroups:
+            return JSONResponse(_("No nodegroup matching query parameters found."), status=404)
+
+        return JSONResponse(nodegroup, status=200)
 
 
 @method_decorator(csrf_exempt, name="dispatch")
@@ -1563,7 +1612,9 @@ class NodeValue(APIBase):
                 data = datatype.update(tile, data, nodeid, action=operation)
 
             # update/create tile
-            new_tile = TileProxyModel.update_node_value(nodeid, data, tileid, resourceinstanceid=resourceid, transaction_id=transaction_id)
+            new_tile = TileProxyModel.update_node_value(
+                nodeid, data, tileid, request=request, resourceinstanceid=resourceid, transaction_id=transaction_id
+            )
 
             response = JSONResponse(new_tile, status=200)
         else:
@@ -1669,3 +1720,22 @@ class Validator(APIBase):
             return JSONResponse(self.validate_tile(tile, verbose, strict), indent=indent)
 
         return JSONResponse(status=400)
+
+
+class TransformEdtfForTile(APIBase):
+    def get(self, request):
+        try:
+            value = request.GET.get("value")
+            datatype_factory = DataTypeFactory()
+            edtf_datatype = datatype_factory.get_instance("edtf")
+            transformed_value = edtf_datatype.transform_value_for_tile(value)
+            is_valid = len(edtf_datatype.validate(transformed_value)) == 0
+            result = (transformed_value, is_valid)
+
+        except TypeError as e:
+            return JSONResponse({"data": (str(e), False)})
+
+        except Exception as e:
+            return JSONResponse(str(e), status=500)
+
+        return JSONResponse({"data": result})

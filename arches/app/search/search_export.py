@@ -22,6 +22,7 @@ import datetime
 import logging
 from io import StringIO
 from io import BytesIO
+import re
 from django.contrib.gis.geos import GeometryCollection, GEOSGeometry
 from django.core.files import File
 from django.utils.translation import ugettext as _
@@ -60,13 +61,18 @@ class SearchResultsExporter(object):
         self.output = {}
         self.set_precision = GeoUtils().set_precision
 
-    def insert_subcard_below_parent_card(self, main_card_list, sub_card_list):
-        for sub_card in sub_card_list:
-            parent_obj = sub_card.nodegroup.parentnodegroup_id
-            for main_card in main_card_list:
-                if main_card.nodegroup_id == parent_obj:
-                    index_number = main_card_list.index(main_card) + 1
-                    main_card_list.insert(index_number, sub_card)
+    def insert_subcard_below_parent_card(self, main_card_list, sub_card_list, subcards_added):
+        for main_card in main_card_list:
+            sub_cards_to_add = []
+            for sub_card in sub_card_list:
+                if main_card.nodegroup_id == sub_card.nodegroup.parentnodegroup_id:
+                    if sub_card not in main_card_list:
+                        sub_cards_to_add.append(sub_card)
+                        subcards_added = True
+            index_number = main_card_list.index(main_card) + 1
+            main_card_list[index_number:index_number] = sub_cards_to_add
+        return subcards_added    
+        
 
     def return_ordered_header(self, graphid, export_type):
 
@@ -92,11 +98,14 @@ class SearchResultsExporter(object):
 
         subcard_list_with_sort.sort(key=lambda x: x.sortorder, reverse=True)
 
-        self.insert_subcard_below_parent_card(sorted_card_list, card_list_no_sort)
+        def order_cards(subcards_added=True):
+            if subcards_added == True:
+                subcards_added = False
+                unsorted_subcards_added = self.insert_subcard_below_parent_card(sorted_card_list, card_list_no_sort, subcards_added)
+                sorted_subcards_added = self.insert_subcard_below_parent_card(sorted_card_list, subcard_list_with_sort, unsorted_subcards_added)
+                order_cards(sorted_subcards_added)
 
-        # Cards in subcard_list_with_sort are added after cards with no sort
-
-        self.insert_subcard_below_parent_card(sorted_card_list, subcard_list_with_sort)
+        order_cards()
 
         # Create a list of nodes within each card and order them according to sort
         # order then add them to the main list of
@@ -236,13 +245,13 @@ class SearchResultsExporter(object):
 
         return ret, search_export_info
 
-    def write_export_zipfile(self, files_for_export, export_info):
+    def write_export_zipfile(self, files_for_export, export_info, export_name=None):
         """
         Writes a list of file like objects out to a zip file
         """
         zip_stream = zip_utils.create_zip_file(files_for_export, "outputfile")
         today = datetime.datetime.now().isoformat()
-        name = f"{settings.APP_NAME}_{today}.zip"
+        name = f"{export_name}.zip" if (export_name is not None and export_name != "Arches Export") else f"{settings.APP_NAME}_{today}.zip"
         search_history_obj = models.SearchExportHistory.objects.get(pk=export_info.searchexportid)
         f = BytesIO(zip_stream)
         download = File(f)
@@ -341,7 +350,7 @@ class SearchResultsExporter(object):
         csvwriter = csv.DictWriter(dest, delimiter=",", fieldnames=headers)
         csvwriter.writeheader()
         for instance in instances:
-            csvwriter.writerow({k: str(v) for k, v in list(instance.items())})
+            csvwriter.writerow({k: sanitize_csv_value(str(v)) for k, v in list(instance.items())})
         return {"name": f"{name}.csv", "outputfile": dest}
 
     def to_shp(self, instances, headers, name):
@@ -370,7 +379,12 @@ class SearchResultsExporter(object):
 
     def to_geojson(self, instances, headers, name):  # a part of the code exists in datatypes.py, l.567
         if len(instances) > 0:
-            geometry_fields = self.get_geometry_fieldnames(instances[0])
+            geometry_fields = []
+            for instance in instances:
+                geometry_fields_in_instance = self.get_geometry_fieldnames(instance)
+                for geometry_field_value in geometry_fields_in_instance:
+                    if geometry_field_value not in geometry_fields:
+                        geometry_fields.append(geometry_field_value)
 
         features = []
         for geometry_field in geometry_fields:
@@ -394,3 +408,7 @@ class SearchResultsExporter(object):
 
         feature_collection = {"type": "FeatureCollection", "features": features}
         return feature_collection
+
+
+def sanitize_csv_value(value):
+    return re.sub(r"^([@]|[=]|[+]|[-])", "'\g<1>", value)

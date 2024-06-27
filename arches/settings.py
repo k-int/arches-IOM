@@ -47,6 +47,7 @@ DATABASES = {
     }
 }
 
+DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 PG_SUPERUSER = ""
 PG_SUPERUSER_PW = ""
 
@@ -85,7 +86,8 @@ CIIM_PRIVATE_ES_GROUPS = ("Ciim Private ES")
 ELASTICSEARCH_CUSTOM_INDEXES = []
 # [{
 #     'module': 'my_project.search_indexes.sample_index.SampleIndex',
-#     'name': 'my_new_custom_index'
+#     'name': 'my_new_custom_index',
+#     'should_update_asynchronously': False
 # }]
 
 
@@ -174,6 +176,12 @@ EMAIL_HOST_USER = "xxxx@xxx.com"
 
 DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
 
+# If True, allows for user self creation via the signup view. If False, users can only be created via the Django admin view.
+ENABLE_USER_SIGNUP = True
+
+# If True, users must authenticate their accout via email to complete the account creation process.
+FORCE_USER_SIGNUP_EMAIL_AUTHENTICATION = True
+
 POSTGIS_VERSION = (3, 0, 0)
 
 # If you set this to False, Django will make some optimizations so as not
@@ -220,7 +228,7 @@ LANGUAGE_CODE = "en"
 # a list of language codes can be found here http://www.i18nguy.com/unicode/language-identifiers.html
 LANGUAGES = [
     # ("de", _("German")),
-    # ("en", _("English")),
+    ("en", "English"),
     # ("en-gb", _("British English")),
     # ("es", _("Spanish")),
     # ("ar", _("Arabic")),
@@ -355,8 +363,8 @@ AUTHENTICATION_BACKENDS = (
     "arches.app.utils.email_auth_backend.EmailAuthenticationBackend",
     "oauth2_provider.backends.OAuth2Backend",
     "django.contrib.auth.backends.ModelBackend",  # this is default
-    "guardian.backends.ObjectPermissionBackend",
     "arches.app.utils.permission_backend.PermissionBackend",
+    "guardian.backends.ObjectPermissionBackend",
 )
 
 INSTALLED_APPS = (
@@ -377,11 +385,9 @@ INSTALLED_APPS = (
     "oauth2_provider",
     "django_celery_results",
     "compressor",
-    # 'debug_toolbar'
 )
 
 MIDDLEWARE = [
-    # 'debug_toolbar.middleware.DebugToolbarMiddleware',
     "corsheaders.middleware.CorsMiddleware",
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
@@ -431,6 +437,10 @@ LOGGING = {
 }
 
 LOGIN_URL = "auth"
+# Rate limit for authentication views
+# See options (including None or python callables):
+# https://django-ratelimit.readthedocs.io/en/stable/rates.html#rates-chapter
+RATE_LIMIT = "5/m"
 
 PROFILE_LOG_BASE = os.path.join(ROOT_DIR, "logs")
 
@@ -468,7 +478,13 @@ if DEBUG is True:
 # group to assign users who self sign up via the web ui
 USER_SIGNUP_GROUP = "Crowdsource Editor"
 
-CACHES = {"default": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache", "LOCATION": "unique-snowflake"}}
+CACHES = {
+    "default": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache", "LOCATION": "unique-snowflake"},
+    "user_permission": {
+        "BACKEND": "django.core.cache.backends.db.DatabaseCache",
+        "LOCATION": "user_permission_cache",
+    },
+}
 
 DEFAULT_RESOURCE_IMPORT_USER = {"username": "admin", "userid": 1}
 
@@ -493,7 +509,6 @@ TIMEWHEEL_DATE_TIERS = None
 # Identify the usernames and duration (seconds) for which you want to cache the timewheel
 CACHE_BY_USER = {"anonymous": 3600 * 24}
 
-BYPASS_CARDINALITY_TILE_VALIDATION = True
 BYPASS_UNIQUE_CONSTRAINT_TILE_VALIDATION = False
 BYPASS_REQUIRED_VALUE_TILE_VALIDATION = False
 
@@ -591,6 +606,13 @@ FUNCTION_LOCATIONS = [
 SEARCH_COMPONENT_LOCATIONS = [
     "arches.app.search.components",
 ]
+
+ETL_MODULE_LOCATIONS = [
+    "arches.app.etl_modules",
+]
+
+FILE_TYPE_CHECKING = False
+FILE_TYPES = ["bmp", "gif", "jpg", "jpeg", "pdf", "png", "psd", "rtf", "tif", "tiff", "xlsx", "csv", "zip"]
 
 MAPBOX_API_KEY = ""  # Put your Mapbox key here!
 
@@ -725,7 +747,6 @@ JSON_LD_SORT_FUNCTIONS = [lambda x: x.get("@id", "~")]
 
 def JSON_LD_FIX_DATA_FUNCTION(data, jsdata, model):
     return jsdata
-
 
 ##########################################
 ### END RUN TIME CONFIGURABLE SETTINGS ###
