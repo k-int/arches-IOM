@@ -28,7 +28,7 @@ from datetime import datetime
 
 logging.basicConfig(level=logging.INFO, format='%(message)s')
 logger = logging.getLogger()
-logger.addHandler(logging.FileHandler('C:/Arches/iom5/iom5/ciim.log', 'a'))
+logger.addHandler(logging.FileHandler(settings.CIIM_LOG, 'a'))
 print = logger.info
 
 
